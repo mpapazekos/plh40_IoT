@@ -1,0 +1,12 @@
+{
+    "files.watcherExclude": {
+        "**/target": true
+    },
+
+    "[scala]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        }
+    }
+   
+}
