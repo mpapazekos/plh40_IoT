@@ -41,7 +41,7 @@ object RegionManager {
    
     def apply(regionId: String, buildingIds: Iterable[String]): Behavior[Msg] = 
         Behaviors
-            .setup( ctx => new RegionManager(ctx, regionId).init(buildingIds))
+            .setup(ctx => new RegionManager(ctx, regionId).init(buildingIds))
 }
 
 
@@ -103,10 +103,12 @@ final class RegionManager private (context: ActorContext[RegionManager.Msg], reg
                     Behaviors.same       
             }
 
-    private def spawnBuildingActor(buildingId: String): ActorRef[BuildingRep.Msg] = 
+    private def spawnBuildingActor(buildingId: String): ActorRef[BuildingRep.Msg] = {
+        context.log.info("Spawning actor for building: {}", buildingId)
         context.spawnAnonymous(
             Behaviors
                 .supervise(BuildingRep(buildingId, regionId))
                 .onFailure[Exception](SupervisorStrategy.restartWithBackoff(0.5.seconds, 10.seconds, 0.2))
         )
+    }
 }

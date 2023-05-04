@@ -1,15 +1,27 @@
 package plh40_iot.intermediate_manager
 
 import akka.actor.typed.ActorSystem
+import com.typesafe.config.ConfigFactory
 
 object Main {
     
-    def main(args: Array[String]): Unit = {   
-        require(args.length == 1, "Building id is required")
-        
-        val buildingId = args(0)
+    def main(args: Array[String]): Unit = {  
 
-        ActorSystem(DeviceManager(buildingId), s"Building-$buildingId-Manager-System")
+        if (args.isEmpty) {
+            val config = ConfigFactory.load("intermediate_manager")
+            val buildingId = config.getString("intermediate_manager.building.id")
+
+            ActorSystem(DeviceManager(buildingId), s"Building-$buildingId-Manager-System", config)
+        }
+        else {
+            
+            require(args.length == 1, "Building id is required")
+        
+            val buildingId = args(0)
+
+            ActorSystem(DeviceManager(buildingId), s"Building-$buildingId-Manager-System")
+        } 
+       
     } 
 }
 

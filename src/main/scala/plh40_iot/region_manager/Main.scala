@@ -1,6 +1,7 @@
 package plh40_iot.region_manager
 
 import akka.actor.typed.ActorSystem
+import com.typesafe.config.ConfigFactory
 
 object Main {
     /**
@@ -28,15 +29,25 @@ object Main {
 
       def main(args: Array[String]): Unit = {
 
-            require(
-                  args.length >= 2, 
-                  "Invalid number of arguements. Correct use: [region_id] [building_id]*"
-            )
+            if (args.isEmpty) {
+                  val config = ConfigFactory.load("region_manager")
 
-            val regionId = args(0)
-            val buildingIds = args.tail
+                  val regionId = config.getString("region_manager.region.id")
+                  val buildingIds = config.getString("region_manager.buildingIdList").split(",")
 
-            ActorSystem(RegionManager(regionId, buildingIds), s"Region-$regionId-Manager-System")
+                  ActorSystem(RegionManager(regionId, buildingIds), s"Region-$regionId-Manager-System", config)
+            }
+            else {
+                  require(
+                        args.length >= 2, 
+                        "Invalid number of arguements. Correct use: [region_id] [building_id]*"
+                  )
+
+                  val regionId = args(0)
+                  val buildingIds = args.tail
+
+                  ActorSystem(RegionManager(regionId, buildingIds), s"Region-$regionId-Manager-System")
+            }    
       }
   
 }

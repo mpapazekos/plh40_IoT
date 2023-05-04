@@ -57,10 +57,10 @@ object QueryConsumer {
                 implicit val timeout: Timeout = 20.seconds
                 
                 val consumerSettings = 
-                    KafkaConnector.localConsumerSettings(s"Query-Consumer-$buildingId",s"$buildingId-consumer")
+                    KafkaConnector.consumerSettings(s"Query-Consumer-$buildingId",s"$buildingId-consumer")
 
                 val producerSettings = 
-                    KafkaConnector.localProducerSettings(s"Query-Producer-$buildingId")
+                    KafkaConnector.producerSettings(s"Query-Producer-$buildingId")
 
                 val committerSettings = CommitterSettings(context.system)
 

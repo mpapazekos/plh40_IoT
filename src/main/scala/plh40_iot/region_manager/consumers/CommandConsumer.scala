@@ -10,12 +10,11 @@ import akka.kafka.scaladsl.Consumer
 import akka.kafka.scaladsl.Producer
 import akka.stream.typed.scaladsl.ActorFlow
 import akka.util.Timeout
+import plh40_iot.region_manager.RegionManager
 import plh40_iot.util.KafkaConnector
 import spray.json._
 
 import scala.concurrent.duration.DurationInt
-
-import plh40_iot.region_manager.RegionManager
 /**
   * Test command 
   * {"buildings":[{"building":"building1","cmdList":{"commands":[{"group":"test_group","devices":[{"deviceId":"fc5d8e11-f44e-400f-ab65-d85c2fd958c1","command":{"name":"set","value":38.4}},{"deviceId":"6874cd0f-a7e4-4d2f-85e6-dc1ddd37a75b","command":{"name":"set","value":34.4}}]}]}}]}
@@ -39,10 +38,10 @@ object CommandConsumer {
             val committerSettings = CommitterSettings(system)
 
             val consumerSettings = 
-                KafkaConnector.localConsumerSettings(s"$regionId-cmd-consumer", consumerGroup)
+                KafkaConnector.consumerSettings(s"$regionId-cmd-consumer", consumerGroup)
                     
             val producerSettings = 
-                KafkaConnector.localProducerSettings(s"$regionId-cmd-producer")
+                KafkaConnector.producerSettings(s"$regionId-cmd-producer")
                     
             val actorFlow =
                 ActorFlow

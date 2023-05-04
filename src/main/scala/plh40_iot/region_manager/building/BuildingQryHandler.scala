@@ -19,7 +19,7 @@ object BuildingQryHandler {
             implicit val system = context.system
             
             val consumerSettings = 
-                KafkaConnector.localConsumerSettings(s"Query-Consumer--$regionId-$buildingId", consumerGroup)
+                KafkaConnector.consumerSettings(s"Query-Consumer--$regionId-$buildingId", consumerGroup)
 
             val committerSettings = CommitterSettings(system)
         

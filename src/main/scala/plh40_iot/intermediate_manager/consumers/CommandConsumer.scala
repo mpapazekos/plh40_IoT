@@ -10,13 +10,12 @@ import akka.kafka.scaladsl.Committer
 import akka.kafka.scaladsl.Consumer
 import akka.stream.typed.scaladsl.ActorFlow
 import akka.util.Timeout
+import plh40_iot.domain.ParsedCommands
+import plh40_iot.intermediate_manager.DeviceManager
 import plh40_iot.util.KafkaConnector
 import spray.json._
 
 import scala.concurrent.duration.DurationInt
-
-import plh40_iot.intermediate_manager.DeviceManager
-import plh40_iot.domain.ParsedCommands
 
 //Test command - topic: Command-{buildingId} 
 //{"commands":[{"groupId":"test_group1","devices":[]},{"groupId":"factory","devices":[{"deviceId":"tb1","command":{"name":"set","value":38.4}}]},{"groupId":"room","devices":[{"deviceId":"bb1","command":{"name":"change-status","value":"charging"}}]}]}
@@ -47,7 +46,7 @@ object CommandConsumer {
                 implicit val timeout: Timeout = 20.seconds
                 
                 val consumerSettings = 
-                    KafkaConnector.localConsumerSettings(s"Command-Consumer-$buildingId",s"$buildingId-consumer")
+                    KafkaConnector.consumerSettings(s"Command-Consumer-$buildingId",s"$buildingId-consumer")
 
                 val committerSettings = CommitterSettings(context.system)
 

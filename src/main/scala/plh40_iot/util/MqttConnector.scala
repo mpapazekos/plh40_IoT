@@ -19,6 +19,7 @@ import plh40_iot.util.Utils
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import com.typesafe.config.ConfigFactory
 
 object MqttConnector {
 
@@ -30,8 +31,17 @@ object MqttConnector {
     case class Publish(message: MqttMessage) extends Event
     case class FailureOccured(ex: Exception) extends Event
 
-    private val connectClient: String => MqttConnectionSettings = 
-        connectionSettings("localhost", 1883)
+    private val connectClient: String => MqttConnectionSettings = {
+        (clientId: String) => 
+            val config = ConfigFactory.load("mqtt").getConfig("mqtt-connection-settings")
+
+            val (host, port) = (config.getString("hostname"), config.getString("port"))
+
+            MqttConnectionSettings(s"tcp://$host:$port", "IoTManager", new MemoryPersistence)
+                .withCleanSession(false)
+                .withAutomaticReconnect(false)
+                .withClientId(clientId) 
+    } 
 
     private val restartSettings =  
         RestartSettings(100.millis, 3.seconds, randomFactor = 0.2d).withMaxRestarts(10, 5.minutes)
@@ -75,13 +85,5 @@ object MqttConnector {
         // Επιστρέφεται ο actor που τοποθετεί τα δεδομένα τύπου Event στη ροή
         streamActor
     }
-
-    private def connectionSettings(host: String, port: Int) = {
-        (clientId: String) => 
-            MqttConnectionSettings(s"tcp://$host:$port", "IoTManager", new MemoryPersistence)
-                .withCleanSession(false)
-                .withAutomaticReconnect(false)
-                .withClientId(clientId)          
-    }  
 }
 

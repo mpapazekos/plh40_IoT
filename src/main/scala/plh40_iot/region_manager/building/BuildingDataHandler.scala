@@ -20,7 +20,7 @@ object BuildingDataHandler {
                 implicit val system = context.system
                
                 val consumerSettings = 
-                    KafkaConnector.localConsumerSettings(s"$regionId-$buildingId-DATA-CONSUMER", consumerGroup)
+                    KafkaConnector.consumerSettings(s"$regionId-$buildingId-DATA-CONSUMER", consumerGroup)
                 
                 val committerSettings = CommitterSettings(system)
   

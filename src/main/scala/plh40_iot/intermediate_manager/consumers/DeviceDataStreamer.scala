@@ -50,7 +50,7 @@ object DeviceDataStreamer {
                         .ask[DeviceData, NewData, DataReceived](askRef)(NewData.apply)
 
                 val producerSettings = 
-                    KafkaConnector.localProducerSettings(s"Data-Producer-$deviceId")
+                    KafkaConnector.producerSettings(s"Data-Producer-$deviceId")
 
                 subscriberSource
                     .map(device.fromJsonString)

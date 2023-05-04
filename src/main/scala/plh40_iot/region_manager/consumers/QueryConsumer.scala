@@ -1,22 +1,20 @@
 package plh40_iot.region_manager.consumers
 
+import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import akka.kafka.CommitterSettings
-import plh40_iot.util.KafkaConnector
-import akka.stream.typed.scaladsl.ActorFlow
 import akka.kafka.ConsumerMessage
-import akka.actor.typed.ActorRef
-import akka.util.Timeout
-
-import scala.concurrent.duration.DurationInt
 import akka.kafka.Subscriptions
-import akka.kafka.scaladsl.Producer
 import akka.kafka.scaladsl.Consumer
-
+import akka.kafka.scaladsl.Producer
+import akka.stream.typed.scaladsl.ActorFlow
+import akka.util.Timeout
+import plh40_iot.region_manager.RegionManager
+import plh40_iot.util.KafkaConnector
 import spray.json._
 
-import plh40_iot.region_manager.RegionManager
+import scala.concurrent.duration.DurationInt
 
 object RegionQueryActor {
   
@@ -37,10 +35,10 @@ object RegionQueryActor {
             val committerSettings = CommitterSettings(system)
 
             val consumerSettings = 
-                KafkaConnector.localConsumerSettings(s"$regionId-query-consumer", consumerGroup)
+                KafkaConnector.consumerSettings(s"$regionId-query-consumer", consumerGroup)
                     
             val producerSettings = 
-                KafkaConnector.localProducerSettings(s"$regionId-query-producer")
+                KafkaConnector.producerSettings(s"$regionId-query-producer")
                     
             val actorFlow =
                 ActorFlow

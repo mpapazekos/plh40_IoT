@@ -28,20 +28,17 @@ object KafkaConnector {
           .map(resOffest => resOffest._1)
   }
 
-  def localProducerSettings(clientId: String)(implicit system: ActorSystem[_]): ProducerSettings[String, String] = { 
+  def producerSettings(clientId: String)(implicit system: ActorSystem[_]): ProducerSettings[String, String] = { 
       val config = system.settings.config.getConfig("akka.kafka.producer")
         
       ProducerSettings(config, new StringSerializer, new StringSerializer)
-          .withBootstrapServers("localhost:9092")
-          .withClientId(clientId)
-         
+          .withClientId(clientId)       
   }
 
-  def localConsumerSettings(clientId: String, groupId: String)(implicit system: ActorSystem[_]): ConsumerSettings[String, String] = { 
+  def consumerSettings(clientId: String, groupId: String)(implicit system: ActorSystem[_]): ConsumerSettings[String, String] = { 
       val config = system.settings.config.getConfig("akka.kafka.consumer")
         
       ConsumerSettings(config, new StringDeserializer, new StringDeserializer)
-          .withBootstrapServers("localhost:9092")
           .withClientId(clientId)
           .withGroupId(groupId)
   }
