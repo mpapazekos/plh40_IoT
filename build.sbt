@@ -1,7 +1,6 @@
 ThisBuild / scalaVersion := "2.13.10" 
 ThisBuild / version      := "0.1.0-SNAPSHOT"
 
-
 val AkkaVersion = "2.7.0"
 val AlpakkaKafkaVersion = "4.0.0"
 val AlpakkaMqttVersion = "5.0.0"
@@ -29,21 +28,106 @@ lazy val commonSettings = Seq(
   Global / cancelable := true
 )
 
+lazy val commonDependencies = Seq (
+  "ch.qos.logback" % "logback-classic" % LogbackVersion,
+  "com.typesafe.akka" %% "akka-actor-typed" % AkkaVersion,
+  "com.typesafe.akka" %% "akka-stream" % AkkaVersion,
+  "com.typesafe.akka" %% "akka-stream-typed" % AkkaVersion,
+  "com.typesafe.akka" %% "akka-actor-testkit-typed" % AkkaVersion % Test,
+  "org.scalatest" %% "scalatest" % "3.2.12" % Test,
+  "io.spray" %%  "spray-json" % "1.3.6"
+)
+//============================================================================= 
 lazy val plh40_iot = 
   project
     .in(file("."))
-    .settings(commonSettings)
+    .settings(
+      commonSettings,
+      libraryDependencies ++= commonDependencies
+    )
+    .settings(
+      mainClass := Some("plh40_iot.intermediate_manager.Main"),
+      dockerBaseImage := "amd64/eclipse-temurin:11.0.19_7-jre",
+      //dockerBuildCommand ++= Seq("--platform=linux/arm64/v8"),
+      packageName := "plh40-iot/intermediate-manager",
+      version := "latest",
+      dockerExposedPorts ++= Seq(9001)
+    )
     .settings(
       libraryDependencies ++= Seq(
-            "ch.qos.logback" % "logback-classic" % LogbackVersion,
-            "com.typesafe.akka" %% "akka-actor-typed" % AkkaVersion,
-            "com.typesafe.akka" %% "akka-stream" % AkkaVersion,
-            "com.typesafe.akka" %% "akka-stream-typed" % AkkaVersion,
-            "com.typesafe.akka" %% "akka-actor-testkit-typed" % AkkaVersion % Test,
-            "org.scalatest" %% "scalatest" % "3.2.12" % Test,
-            "com.typesafe.akka" %% "akka-stream-kafka" % AlpakkaKafkaVersion,
-            "com.typesafe.akka" %% "akka-discovery" % AkkaVersion,
-            "com.lightbend.akka" %% "akka-stream-alpakka-mqtt" % AlpakkaMqttVersion,
-            "io.spray" %%  "spray-json" % "1.3.6"
+        "com.typesafe.akka" %% "akka-stream-kafka" % AlpakkaKafkaVersion,
+        "com.typesafe.akka" %% "akka-discovery" % AkkaVersion,
+        "com.lightbend.akka" %% "akka-stream-alpakka-mqtt" % AlpakkaMqttVersion, 
+      )
+    )
+
+//============================================================================= 
+lazy val edge_device = 
+  project
+    .in(file("edge_device"))
+    .dependsOn(plh40_iot)
+    .settings(
+      commonSettings,
+      libraryDependencies ++= commonDependencies,
+      mainClass := Some("Main")
+    )
+    .settings(
+      libraryDependencies ++= Seq("com.lightbend.akka" %% "akka-stream-alpakka-mqtt" % AlpakkaMqttVersion)
+    )
+    .enablePlugins(JavaAppPackaging, DockerPlugin)
+    .settings(
+      dockerBaseImage := "arm64v8/eclipse-temurin:11.0.19_7-jre",
+      dockerBuildCommand ++= Seq("--platform=linux/arm64/v8"),
+      packageName := "plh40-iot/edge_device",
+      version := "latest",
+      dockerExposedPorts ++= Seq(9001)
+    )
+
+//============================================================================= 
+lazy val intermediate_manager = 
+  project
+    .in(file("intermediate_manager"))
+    .dependsOn(plh40_iot)
+    .settings(
+      commonSettings,
+      libraryDependencies ++= commonDependencies,
+      mainClass := Some("Main")
+    )
+    .settings(
+        libraryDependencies ++= Seq(
+          "com.typesafe.akka" %% "akka-stream-kafka" % AlpakkaKafkaVersion,
+          "com.typesafe.akka" %% "akka-discovery" % AkkaVersion,
+          "com.lightbend.akka" %% "akka-stream-alpakka-mqtt" % AlpakkaMqttVersion    
         )
+    )
+    .enablePlugins(JavaAppPackaging, DockerPlugin)
+    .settings(
+      dockerBaseImage := "amd64/eclipse-temurin:11.0.19_7-jre",
+      packageName := "plh40-iot/intermediate_manager",
+      version := "latest",
+      dockerExposedPorts ++= Seq(9002)
+    )
+    
+//============================================================================= 
+lazy val region_manager = 
+  project
+    .in(file("region_manager"))
+    .dependsOn(plh40_iot)
+    .settings(
+      commonSettings,
+      libraryDependencies ++= commonDependencies,
+      mainClass := Some("Main")
+    )
+    .settings(
+      libraryDependencies ++= Seq(
+        "com.typesafe.akka" %% "akka-stream-kafka" % AlpakkaKafkaVersion,
+        "com.typesafe.akka" %% "akka-discovery" % AkkaVersion, 
+      )
+    )
+    .enablePlugins(JavaAppPackaging, DockerPlugin)
+    .settings(
+      dockerBaseImage := "amd64/eclipse-temurin:11.0.19_7-jre",
+      packageName := "plh40-iot/region_manager",
+      version := "latest",
+      dockerExposedPorts ++= Seq(9003)
     )

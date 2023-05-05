@@ -1,17 +1,21 @@
 package plh40_iot.util
 
-import akka.actor.typed.ActorSystem
 import akka.kafka.ConsumerMessage.CommittableOffset
 import akka.kafka.ConsumerSettings
 import akka.kafka.ProducerSettings
 import akka.kafka.Subscription
 import akka.kafka.scaladsl.Consumer
+import akka.kafka.scaladsl.Producer
+import akka.stream.RestartSettings
+import akka.stream.scaladsl.RestartSink
 import akka.stream.scaladsl.SourceWithContext
+import com.typesafe.config.ConfigFactory
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 object KafkaConnector {
  
@@ -28,24 +32,34 @@ object KafkaConnector {
           .map(resOffest => resOffest._1)
   }
 
-  def producerSettings(clientId: String)(implicit system: ActorSystem[_]): ProducerSettings[String, String] = { 
-      val config = system.settings.config.getConfig("akka.kafka.producer")
+  def producerSettings(clientId: String): ProducerSettings[String, String] = { 
+      val config = ConfigFactory.load("kafka").getConfig("akka.kafka.producer")
         
       ProducerSettings(config, new StringSerializer, new StringSerializer)
           .withClientId(clientId)       
   }
 
-  def consumerSettings(clientId: String, groupId: String)(implicit system: ActorSystem[_]): ConsumerSettings[String, String] = { 
-      val config = system.settings.config.getConfig("akka.kafka.consumer")
+  def consumerSettings(clientId: String, groupId: String): ConsumerSettings[String, String] = { 
+      val config = ConfigFactory.load("kafka").getConfig("akka.kafka.consumer")
         
       ConsumerSettings(config, new StringDeserializer, new StringDeserializer)
           .withClientId(clientId)
           .withGroupId(groupId)
   }
 
+  def plainRestartProducer(producerSettings: ProducerSettings[String, String]) = {
+    val restartSettings =  
+      RestartSettings(100.millis, 10.seconds, randomFactor = 0.2d).withMaxRestarts(20, 5.minutes)
+
+    val producer = Producer.plainSink(producerSettings)
+
+    RestartSink.withBackoff(restartSettings)(() => producer)
+  }
+  
   private def parseWithOffset[Result](msg: String, offset: CommittableOffset, parse: String => Result)(implicit ec: ExecutionContext): Future[Either[String, (Result, CommittableOffset)]] = 
     Utils.parseMessage(msg, msg => (parse(msg), offset))
     
+
   /*
   Η τελική μορφή των topics θα πρέπει να είναι κάπως έτσι:
 

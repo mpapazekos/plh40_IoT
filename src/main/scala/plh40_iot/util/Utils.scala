@@ -9,6 +9,7 @@ import akka.stream.scaladsl.Source
 import akka.stream.RestartSettings
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.RestartSink
 
 object Utils {
 
@@ -42,6 +43,20 @@ object Utils {
         RestartSource
             .withBackoff(restartSettings) {
                 () => source.mapMaterializedValue(mat => fut.completeWith(mat))
+            }
+            .mapMaterializedValue(_ => fut.future)
+    }
+
+    /**
+     * Wrap a sink with restart logic and expose an equivalent materialized value.
+     */
+    def wrapWithAsRestartSink[M](restartSettings: RestartSettings, sink: => Sink[M, Future[Done]]): Sink[M, Future[Done]] = {
+
+        val fut = Promise[Done]()
+
+        RestartSink
+            .withBackoff(restartSettings) {
+                () => sink.mapMaterializedValue(mat => fut.completeWith(mat))
             }
             .mapMaterializedValue(_ => fut.future)
     }

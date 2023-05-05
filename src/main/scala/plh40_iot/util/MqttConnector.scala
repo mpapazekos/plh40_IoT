@@ -44,7 +44,7 @@ object MqttConnector {
     } 
 
     private val restartSettings =  
-        RestartSettings(100.millis, 3.seconds, randomFactor = 0.2d).withMaxRestarts(10, 5.minutes)
+        RestartSettings(1.second, 20.seconds, randomFactor = 0.2d).withMaxRestarts(10, 5.minutes)
 
 
     def subscriberSource(clientId: String, subscriptions: MqttSubscriptions)(implicit ec: ExecutionContext): Source[String, Future[Done]] = {
@@ -56,11 +56,12 @@ object MqttConnector {
             .mapAsync(4)(messageWithAck => messageWithAck.ack().map(_ => messageWithAck.message.payload.utf8String))
     }
 
-    def publisherSink(clientId: String): Sink[MqttMessage, Future[Done]] = 
-        MqttSink(
-            connectClient(clientId), 
-            MqttQoS.atLeastOnce
-        )
+    def publisherSink(clientId: String): Sink[MqttMessage, Future[Done]] = { 
+        
+        val sinkToBroker = MqttSink(connectClient(clientId), MqttQoS.atLeastOnce)
+
+        Utils.wrapWithAsRestartSink(restartSettings, sinkToBroker)
+    }
         
 
     def runClientStream(clientId: String, actorSource: Source[Event, ActorRef[Event]])(implicit system: ActorSystem[_]): ActorRef[Event] = {
