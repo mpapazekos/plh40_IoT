@@ -46,14 +46,6 @@ lazy val plh40_iot =
       libraryDependencies ++= commonDependencies
     )
     .settings(
-      mainClass := Some("plh40_iot.intermediate_manager.Main"),
-      dockerBaseImage := "amd64/eclipse-temurin:11.0.19_7-jre",
-      //dockerBuildCommand ++= Seq("--platform=linux/arm64/v8"),
-      packageName := "plh40-iot/intermediate-manager",
-      version := "latest",
-      dockerExposedPorts ++= Seq(9001)
-    )
-    .settings(
       libraryDependencies ++= Seq(
         "com.typesafe.akka" %% "akka-stream-kafka" % AlpakkaKafkaVersion,
         "com.typesafe.akka" %% "akka-discovery" % AkkaVersion,
