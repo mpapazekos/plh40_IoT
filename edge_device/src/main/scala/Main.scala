@@ -2,10 +2,10 @@
 import akka.actor.typed.ActorSystem
 import plh40_iot.domain.DeviceTypes
 import com.typesafe.config.ConfigFactory
-import java.util.UUID
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 
+//"tm14bb28d24" "bm1516b0a34" "tm26a3009c0" "bm2b7cab08ac"
 object Main {
 
     def main(args: Array[String]): Unit = {
@@ -27,14 +27,14 @@ object Main {
             Behaviors.setup[Nothing]{ context => 
                 
                 // module1 -----------------------------------------------------------
-                val device1_id = UUID.randomUUID().toString()
+                val device1_id = "4bb28d24"
                 val device1 = 
                     DeviceActor(
                         getDevice("thermostat", device1_id).getOrElse(???), 
                         buildingId, "module1", s"/$buildingId/module1/temperature/$device1_id"
                     )
 
-                val device2_id = UUID.randomUUID().toString()
+                val device2_id = "516b0a34"
                 val device2 = 
                     DeviceActor(
                         getDevice("battery", device2_id).getOrElse(???), 
@@ -42,14 +42,14 @@ object Main {
                     )
 
                 // module2 ---------------------------------------------------
-                val device3_id = UUID.randomUUID().toString()
+                val device3_id = "6a3009c0"
                 val device3 = 
                     DeviceActor(
                         getDevice("thermostat", device3_id).getOrElse(???), 
                         buildingId, "module2", s"/$buildingId/module2/temperature/$device3_id"
                     )
 
-                val device4_id = UUID.randomUUID().toString()
+                val device4_id = "7cab08ac"
                 val device4 = 
                     DeviceActor(
                         getDevice("battery", device4_id).getOrElse(???), 

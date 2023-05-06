@@ -20,6 +20,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import com.typesafe.config.ConfigFactory
+import java.util.UUID
 
 object MqttConnector {
 
@@ -36,11 +37,12 @@ object MqttConnector {
             val config = ConfigFactory.load("mqtt").getConfig("mqtt-connection-settings")
 
             val (host, port) = (config.getString("hostname"), config.getString("port"))
+            val randomUUID = UUID.randomUUID().toString()
 
             MqttConnectionSettings(s"tcp://$host:$port", "IoTManager", new MemoryPersistence)
                 .withCleanSession(false)
                 .withAutomaticReconnect(false)
-                .withClientId(clientId) 
+                .withClientId(clientId + " - " + randomUUID) 
     } 
 
     private val restartSettings =  

@@ -29,8 +29,9 @@ import plh40_iot.domain.RegisterInfo
 final class SmartDeviceActor[A <: DeviceData, B <: DeviceCmd] (
     ctx: ActorContext[DeviceActor.Msg], 
     device: SmartDevice[A, B], 
-    modulePath: String
-) extends GenDeviceActor(ctx, device, modulePath) {
+    modulePath: String,
+    buildingId: String
+) extends GenDeviceActor(ctx, device, modulePath, buildingId) {
 
    import DeviceActor._
 
@@ -59,7 +60,7 @@ final class SmartDeviceActor[A <: DeviceData, B <: DeviceCmd] (
 }
 
 
-sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg], device: GenDevice[A], modulePath: String){
+sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg], device: GenDevice[A], modulePath: String,  buildingId:  String){
 
     import DeviceActor._
     import MqttConnector._
@@ -144,7 +145,7 @@ sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg]
     
         //subsciber
         val subSource = 
-            MqttConnector.subscriberSource(s"REG_${device.id}", MqttSubscriptions(s"/register/${device.id}", MqttQoS.AtLeastOnce))
+            MqttConnector.subscriberSource(s"REG_${device.id}", MqttSubscriptions(s"$buildingId/register/${device.id}", MqttQoS.AtLeastOnce))
 
         val actorFlow =
             ActorFlow.askWithStatus[String, RegisterMsg, Done](ctx.self)(RegisterMsg.apply)

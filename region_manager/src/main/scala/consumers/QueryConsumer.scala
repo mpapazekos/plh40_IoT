@@ -14,6 +14,7 @@ import spray.json._
 
 import scala.concurrent.duration.DurationInt
 
+//{"buildings":[{"building":"building1","groupList":{"queryId":"query1","groups":[{"group":"error_group","devices":[]},{"group":"module1","devices":["4bb28d24","516b0a34","error_id"]},{"group":"module2","devices":["6a3009c0","7cab08ac","error_id"]}]}},{"building":"building2","groupList":{"queryId":"query1","groups":[{"group":"error_group","devices":[]},{"group":"module1","devices":["4bb28d24","516b0a34","error_id"]},{"group":"module2","devices":["6a3009c0","7cab08ac","error_id"]}]}}]}
 object QueryConsumer {
   
     import RegionManager.{SendToBuilding, KafkaRecords}

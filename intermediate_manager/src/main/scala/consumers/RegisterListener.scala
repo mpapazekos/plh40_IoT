@@ -57,7 +57,7 @@ object RegisterListener {
                                     case CouldNotCreateDevice(devId, error) => (devId,s"COULD NOT CREATE DEVICE: $error")         
                                 }
 
-                            MqttMessage(s"/register/$devId", ByteString(payload))
+                            MqttMessage(s"$buildingId/register/$devId", ByteString(payload))
                         }
                         
                 val sinkToBroker = 

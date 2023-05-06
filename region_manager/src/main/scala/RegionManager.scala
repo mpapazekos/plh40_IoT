@@ -45,7 +45,8 @@ final class RegionManager private (context: ActorContext[RegionManager.Msg], reg
 
     import RegionManager._
 
-   
+    private var buildingIdToActor: HashMap[String, ActorRef[BuildingRep.Msg]] = HashMap.empty
+
     context.spawn[Nothing](
         Behaviors
             .supervise[Nothing](QueryConsumer(regionId,s"$regionId-qry-group", context.self))
@@ -61,14 +62,16 @@ final class RegionManager private (context: ActorContext[RegionManager.Msg], reg
             )
 
     def init(buildingIds: Iterable[String]): Behavior[Msg] = {
-        val buildingIdToActor =
-            buildingIds.map(id => (id, spawnBuildingActor(id)))
+        val buildings =
+            buildingIds.map(id => (id -> spawnBuildingActor(id)))
         
-        mainBehavior(HashMap.from(buildingIdToActor))
+        buildingIdToActor = buildingIdToActor.concat(buildings)
+
+        mainBehavior()
     }
 
   
-    private def mainBehavior(buildingIdToActor: HashMap[String, ActorRef[BuildingRep.Msg]]): Behavior[Msg] = 
+    private def mainBehavior(): Behavior[Msg] = 
         Behaviors
             .receiveMessagePartial {
                 case RegisterBuilding(buildingId, replyTo) => 
@@ -79,7 +82,9 @@ final class RegionManager private (context: ActorContext[RegionManager.Msg], reg
                     else {
                         val buildingRef = spawnBuildingActor(buildingId)
                         replyTo ! StatusReply.Success(s"Building $buildingId registered successfully")
-                        mainBehavior(buildingIdToActor.updated(buildingId, buildingRef))
+
+                        buildingIdToActor = buildingIdToActor.updated(buildingId, buildingRef)
+                        Behaviors.same
                     }  
 
                 case SendToBuilding(buildingMap, topicPrefix, replyTo) => 

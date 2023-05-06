@@ -141,7 +141,8 @@ final class DeviceManager private (context: ActorContext[DeviceManager.Msg], bui
 
                     val resultsJson = 
                         s"""|{
-                            |"queryId": ${parsedQuery.queryId},
+                            |"buildingId": "$buildingId",
+                            |"queryId": "${parsedQuery.queryId}"",
                             |"results":[${replies.flatMap(_.jsonList).mkString(",")}] 
                             |}"""
                             .stripMargin

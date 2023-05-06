@@ -70,6 +70,7 @@ lazy val edge_device =
     .settings(
       dockerBaseImage := "arm64v8/eclipse-temurin:11.0.19_7-jre",
       dockerBuildCommand ++= Seq("--platform=linux/arm64/v8"),
+      //packageName := "plh40-iot/edge_building",
       packageName := "plh40-iot/edge_device",
       version := "latest",
       dockerExposedPorts ++= Seq(9001)

@@ -23,7 +23,7 @@ object DeviceActor {
             Behaviors
                 .withTimers { timers => 
                     timers.startTimerAtFixedRate(Tick, 3.seconds)
-                    new GenDeviceActor[A](context, device, modulePath).registering(module, s"/$buildingId/register")
+                    new GenDeviceActor[A](context, device, modulePath, buildingId).registering(module, s"/$buildingId/register")
                 }
         }
 
@@ -32,9 +32,9 @@ object DeviceActor {
             .setup { context => 
                 Behaviors
                     .withTimers { timers => 
-                        context.spawnAnonymous[Nothing](CmdSubscriber(device.id, modulePath, context.self, device.cmdFromJsonString))
+                        context.spawnAnonymous[Nothing](CmdSubscriber(device.id,modulePath, context.self, device.cmdFromJsonString))
                         timers.startTimerAtFixedRate(Tick, 3.seconds)
-                        new SmartDeviceActor[A, B](context, device, modulePath).registering(module, s"/$buildingId/register")
+                        new SmartDeviceActor[A, B](context, device, modulePath, buildingId).registering(module, s"/$buildingId/register")
                     }
             }
 }

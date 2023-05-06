@@ -16,7 +16,7 @@ import spray.json._
 import scala.concurrent.duration.DurationInt
 /**
   * Test command 
-  * {"buildings":[{"building":"building1","cmdList":{"commands":[{"group":"test_group","devices":[{"deviceId":"fc5d8e11-f44e-400f-ab65-d85c2fd958c1","command":{"name":"set","value":38.4}},{"deviceId":"6874cd0f-a7e4-4d2f-85e6-dc1ddd37a75b","command":{"name":"set","value":34.4}}]}]}}]}
+  * {"buildings":[{"building":"building1","cmdList":{"commands":[{"groupId":"error_group","devices":[]},{"groupId":"module1","devices":[{"deviceId":"4bb28d24","command":{"name":"set","value":38.4}},{"deviceId":"516b0a34","command":{"name":"change-status","value":"discharging"}},{"deviceId":"error_id","command":{}}]},{"groupId":"module2","devices":[{"deviceId":"6a3009c0","command":{"name":"set","value":25.4}},{"deviceId":"7cab08ac","command":{"name":"change-status","value":"discharging"}},{"deviceId":"error_id","command":{}}]}]}},{"building":"building2","cmdList":{"commands":[{"groupId":"error_group","devices":[]},{"groupId":"module1","devices":[{"deviceId":"4bb28d24","command":{"name":"set","value":38.4}},{"deviceId":"516b0a34","command":{"name":"change-status","value":"discharging"}},{"deviceId":"error_id","command":{}}]},{"groupId":"module2","devices":[{"deviceId":"6a3009c0","command":{"name":"set","value":25.4}},{"deviceId":"7cab08ac","command":{"name":"change-status","value":"discharging"}},{"deviceId":"error_id","command":{}}]}]}}]}
   */
 object CommandConsumer {
   
@@ -78,18 +78,19 @@ object CommandConsumer {
     */
     private def parseBuildingsJson(msg: String): Map[String, String] = {
         
-        val buildings = 
-            msg.parseJson.asJsObject.getFields("buildings").head
+        val fields = 
+            msg.parseJson.asJsObject.fields
 
         val parsed = 
-            buildings
-                .asInstanceOf[JsArray]
-                .elements
-                .map { elem =>  
-                    val fields = elem.asJsObject.fields
-                    (fields("building").asInstanceOf[JsString].value , fields("cmdList").toString())
-                }      
-                
+            fields("buildings") match {
+                case JsArray(elements) => 
+                    elements
+                        .map { elem =>  
+                            val fields = elem.asJsObject.fields
+                            (fields("building").asInstanceOf[JsString].value , fields("cmdList").toString())
+                        }  
+            }
+
         parsed.toMap
     }   
 }

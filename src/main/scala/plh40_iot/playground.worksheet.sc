@@ -144,8 +144,33 @@ val parsedCommands = commandJson.parseJson.convertTo[ParsedCommands]
 
 parsedCommands.commands
 
+//=======================================================================
+val cmdJson = 
+    """
+    {"buildings":[{"building":"building1","cmdList":{"commands":[{"groupId":"error_group","devices":[]},{"groupId":"module1","devices":[{"deviceId":"4bb28d24","command":{"name":"set","value":38.4}},{"deviceId":"516b0a34","command":{"name":"change-status","value":"discharging"}},{"deviceId":"error_id","command":{}}]},{"groupId":"module2","devices":[{"deviceId":"6a3009c0","command":{"name":"set","value":25.4}},{"deviceId":"7cab08ac","command":{"name":"change-status","value":"discharging"}},{"deviceId":"error_id","command":{}}]}]}},{"building":"building2","cmdList":{"commands":[{"groupId":"error_group","devices":[]},{"groupId":"module1","devices":[{"deviceId":"4bb28d24","command":{"name":"set","value":38.4}},{"deviceId":"516b0a34","command":{"name":"change-status","value":"discharging"}},{"deviceId":"error_id","command":{}}]},{"groupId":"module2","devices":[{"deviceId":"6a3009c0","command":{"name":"set","value":25.4}},{"deviceId":"7cab08ac","command":{"name":"change-status","value":"discharging"}},{"deviceId":"error_id","command":{}}]}]}}]}
+    """
 
+def parseBuildingsJson(msg: String): Map[String, String] = {
+        
+        val fields = 
+            msg.parseJson.asJsObject.fields
 
+        val parsed = 
+            fields("buildings") match {
+                case JsArray(elements) => 
+                    elements
+                        .map { elem =>  
+                            val fields = elem.asJsObject.fields
+                            (fields("building").asInstanceOf[JsString].value , fields("cmdList").toString())
+                        }  
+            }
+
+        parsed.toMap
+    }   
+
+val parsedBuilding = parseBuildingsJson(cmdJson)
+
+parsedBuilding("building2")
 
 
 
