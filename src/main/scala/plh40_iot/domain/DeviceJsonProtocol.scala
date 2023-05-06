@@ -31,7 +31,7 @@ object DeviceJsonProtocol {
       }  
   }
 
-  implicit val batteryFormat = jsonFormat2(BatteryData)
+  implicit val batteryFormat = jsonFormat4(BatteryData)
 
   //=============================================================================
 
@@ -50,7 +50,7 @@ object DeviceJsonProtocol {
   }
 
 
-  implicit val thermostatFormat = jsonFormat2(ThermostatData)
+  implicit val thermostatFormat = jsonFormat4(ThermostatData)
 
   //=============================================================================
 

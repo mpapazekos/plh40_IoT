@@ -16,7 +16,6 @@ import scala.util.Success
 final class SmartDeviceRep[A <: DeviceData, B <: DeviceCmd](
     context: ActorContext[DeviceRep.Msg], 
     device: SmartDevice[A, B], 
-    deviceId: String, 
     modulePath: String
 ) {
     
@@ -30,7 +29,7 @@ final class SmartDeviceRep[A <: DeviceData, B <: DeviceCmd](
             .receiveMessagePartial {
                 case NewData(value, replyTo) =>
                     context.log.info(s"Received new data from MQTT: $value")
-                    replyTo ! DataReceived(deviceId, value)
+                    replyTo ! DataReceived(device.id, value)
                     running(Some(value.asInstanceOf[A]))
 
                 case RequestData(replyTo) => 
@@ -39,7 +38,7 @@ final class SmartDeviceRep[A <: DeviceData, B <: DeviceCmd](
                         data match {
                             case None => 
                                 s"""|{
-                                    |  "deviceId": "$deviceId",
+                                    |  "deviceId": "${device.id}",
                                     |  "data": "NO DATA YET"
                                     |}"""
                                     .stripMargin
@@ -47,19 +46,19 @@ final class SmartDeviceRep[A <: DeviceData, B <: DeviceCmd](
                                 val parsed = device.toJsonString(value.asInstanceOf[A])
                                 val dataRes = parsed.getOrElse(JsString("FAILED TO GET LATEST  DATA"))
                                 s"""{
-                                    |"deviceId": "$deviceId",
+                                    |"deviceId": "${device.id}",
                                     |"data": $dataRes
                                     |}"""
                                     .stripMargin
                         }
 
                     context.log.info(s"Sending data to: $replyTo")
-                    replyTo ! DataResponse(deviceId, response)
+                    replyTo ! DataResponse(device.id, response)
                     Behaviors.same 
 
                 case PublishCommand(cmdJson, replyTo) => 
                     val mqttSink = 
-                        MqttConnector.publisherSink(s"IoT_PUB_CMD_$deviceId")
+                        MqttConnector.publisherSink(s"IoT_PUB_CMD_${device.id}")
 
                     val result =
                         Source
@@ -67,8 +66,8 @@ final class SmartDeviceRep[A <: DeviceData, B <: DeviceCmd](
                             .runWith(mqttSink)
 
                     result.onComplete {
-                        case Success(_) => replyTo ! StatusReply.Success(s"Command published sucessfully for $deviceId")
-                        case Failure(exception) => replyTo ! StatusReply.Error(s"Failed to publish command $cmdJson for $deviceId. Reason: $exception")
+                        case Success(_) => replyTo ! StatusReply.Success(s"Command published sucessfully for ${device.id}")
+                        case Failure(exception) => replyTo ! StatusReply.Error(s"Failed to publish command $cmdJson for ${device.id}. Reason: $exception")
                     }
 
                     Behaviors.same

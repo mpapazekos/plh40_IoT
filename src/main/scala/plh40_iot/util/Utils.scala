@@ -11,6 +11,7 @@ import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.RestartSink
 
+
 object Utils {
 
     type ErrorMessage = String
@@ -33,6 +34,11 @@ object Utils {
         Flow[Either[ErrorMessage, Result]]
             .divertTo(Sink.foreach(println), _.isLeft)
             .collect { case Right(result) => result }
+
+
+    def currentTimestamp(): String =
+        java.time.LocalDateTime.now().toString()
+
     /**
      * Wrap a source with restart logic and expose an equivalent materialized value.
      */

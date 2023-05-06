@@ -90,9 +90,9 @@ final class DeviceGroup private (context: ActorContext[DeviceGroup.Msg], groupId
 
     private def spawnDevice(devInfo: RegisterInfo): Either[String, ActorRef[DeviceRep.Msg]] =        
         DeviceTypes
-            .getDevice(devInfo.devType) match {
+            .getDevice(devInfo.devType, devInfo.devId) match {
                 case Right(device) => 
-                    val ref = context.spawnAnonymous(DeviceRep(device, devInfo.devId, devInfo.modulePath, buildingId))
+                    val ref = context.spawnAnonymous(DeviceRep(device, devInfo.modulePath, buildingId))
                     Right(ref)
                 case Left(error) => Left(error)
             }

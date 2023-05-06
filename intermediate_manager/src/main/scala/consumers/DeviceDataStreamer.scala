@@ -25,7 +25,7 @@ object DeviceDataStreamer {
     // με το που τα λάβει επιτυχώς αναβαθμίζει την κατάσταση του κυρίως actor
     // τα προωθεί στο kafka topic για το συγκεκριμένο κτήριο
 
-    def apply[A <: DeviceData](device: GenDevice[A], deviceId: String, mqttSubTopic: String, kafkaPubTopic: String, askRef: ActorRef[NewData]): Behavior[Nothing] = 
+    def apply[A <: DeviceData](device: GenDevice[A], mqttSubTopic: String, kafkaPubTopic: String, askRef: ActorRef[NewData]): Behavior[Nothing] = 
         Behaviors
             .setup[Nothing] { context => 
 
@@ -38,7 +38,7 @@ object DeviceDataStreamer {
                     MqttSubscriptions(mqttSubTopic -> MqttQoS.AtLeastOnce)
 
                 val subscriberSource = 
-                    MqttConnector.subscriberSource(s"IoT_SUB_$deviceId", subscriptions)
+                    MqttConnector.subscriberSource(s"IoT_SUB_${device.id}", subscriptions)
 
 
                 // Οταν λαμβάνεται μια καινούργια μέτρηση απο εναν mqtt broker 
@@ -50,7 +50,7 @@ object DeviceDataStreamer {
                         .withAttributes(ActorAttributes.supervisionStrategy(Supervision.restartingDecider))
 
                 val producerSettings = 
-                    KafkaConnector.producerSettings(s"Data-Producer-$deviceId")
+                    KafkaConnector.producerSettings(s"Data-Producer-${device.id}")
 
                 val kafkaRestartSink = 
                     KafkaConnector.plainRestartProducer(producerSettings)

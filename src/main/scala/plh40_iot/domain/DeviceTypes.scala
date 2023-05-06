@@ -6,7 +6,8 @@ object DeviceTypes {
 
     trait DeviceData
     trait DeviceCmd
-    trait GenDevice[A <: DeviceData] {
+
+    abstract class GenDevice[A <: DeviceData](val id: String) {
         
         val typeStr : String
         def initState: A
@@ -18,17 +19,17 @@ object DeviceTypes {
         def toJsonString(data: A): Either[String, String]
     }
 
-    trait SmartDevice[A <: DeviceData, B <: DeviceCmd] extends GenDevice[A] {
+    abstract class SmartDevice[A <: DeviceData, B <: DeviceCmd](override val id: String) extends GenDevice[A](id) {
         
         def execute(cmd: B, data: A): A
 
         def cmdFromJsonString(json: String): Either[String, B]
     }
 
-    def getDevice(name: String) =
+    def getDevice(name: String, deviceId: String) =
         name match {
-                case "thermostat" => Right(Thermostat)
-                case "battery" => Right(Battery)
+                case "thermostat" => Right(new Thermostat(deviceId))
+                case "battery" => Right(new Battery(deviceId))
                 case _ => Left("INVALID DEVICE NAME")
             } 
 }

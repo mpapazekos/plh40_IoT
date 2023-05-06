@@ -4,13 +4,15 @@ import scala.util.Random
 
 import plh40_iot.domain.DeviceTypes._
 
+import plh40_iot.util.Utils.currentTimestamp
+
 sealed trait ThermostatCmd extends DeviceCmd
 
 final case class SetVal(value: Double) extends ThermostatCmd
-final case class ThermostatData(value: Double, unit: String) extends DeviceData 
+final case class ThermostatData(deviceId: String, value: Double, unit: String, timestamp: String) extends DeviceData 
 
 
-object Thermostat extends SmartDevice[ThermostatData, ThermostatCmd] {
+final class Thermostat(deviceId: String) extends SmartDevice[ThermostatData, ThermostatCmd](deviceId) {
 
     import plh40_iot.util.Utils.tryParse
     
@@ -21,17 +23,17 @@ object Thermostat extends SmartDevice[ThermostatData, ThermostatCmd] {
     override val typeStr = "thermostat"
     
     override def initState = 
-        ThermostatData(25, "Celsius")
+        ThermostatData(deviceId, 25, "Celsius", currentTimestamp())
 
     override def generateData(data: ThermostatData): ThermostatData = {
         val randomTemperature = Random.between(-10d, 40)
-        ThermostatData(randomTemperature, "Celsius")
+        ThermostatData(deviceId, randomTemperature, "Celsius", currentTimestamp())
     }
 
     override def execute(cmd: ThermostatCmd, data: ThermostatData): ThermostatData = 
         cmd match {
             case SetVal(value) => 
-                ThermostatData(value, "Celsius")
+                ThermostatData(deviceId, value, "Celsius", currentTimestamp())
         }
 
     override def toJsonString(data: ThermostatData): Either[String, String] =

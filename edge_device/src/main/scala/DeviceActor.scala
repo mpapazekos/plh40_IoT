@@ -17,24 +17,24 @@ object DeviceActor {
     final case class RegisterMsg(info: String, replyTo: ActorRef[StatusReply[Done]]) extends Msg
     final case class ExecuteCommand(cmd: DeviceCmd, replyTo: ActorRef[StatusReply[Done]]) extends Msg
     
-    def apply[A <: DeviceData](device: GenDevice[A], deviceId: String, buildingId: String, module: String, modulePath: String): Behavior[Msg] =        
+    def apply[A <: DeviceData](device: GenDevice[A], buildingId: String, module: String, modulePath: String): Behavior[Msg] =        
     Behaviors
         .setup { context => 
             Behaviors
                 .withTimers { timers => 
                     timers.startTimerAtFixedRate(Tick, 3.seconds)
-                    new GenDeviceActor[A](deviceId, context, device, modulePath).registering(module, s"/$buildingId/register")
+                    new GenDeviceActor[A](context, device, modulePath).registering(module, s"/$buildingId/register")
                 }
         }
 
-    def apply[A <: DeviceData, B <: DeviceCmd](device: SmartDevice[A, B], deviceId: String, buildingId: String, module: String, modulePath: String): Behavior[Msg] =        
+    def apply[A <: DeviceData, B <: DeviceCmd](device: SmartDevice[A, B], buildingId: String, module: String, modulePath: String): Behavior[Msg] =        
         Behaviors
             .setup { context => 
                 Behaviors
                     .withTimers { timers => 
-                        context.spawnAnonymous[Nothing](CmdSubscriber(deviceId, modulePath, context.self, device.cmdFromJsonString))
+                        context.spawnAnonymous[Nothing](CmdSubscriber(device.id, modulePath, context.self, device.cmdFromJsonString))
                         timers.startTimerAtFixedRate(Tick, 3.seconds)
-                        new SmartDeviceActor[A, B](deviceId, context, device, modulePath).registering(module, s"/$buildingId/register")
+                        new SmartDeviceActor[A, B](context, device, modulePath).registering(module, s"/$buildingId/register")
                     }
             }
 }

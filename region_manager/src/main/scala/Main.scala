@@ -29,7 +29,7 @@ object Main {
       def main(args: Array[String]): Unit = {
 
             if (args.isEmpty) {
-                  val config = ConfigFactory.load("region_manager")
+                  val config = ConfigFactory.load()
 
                   val regionId = config.getString("region_manager.region.id")
                   val buildingIds = config.getString("region_manager.buildingIdList").split(",")

@@ -31,7 +31,6 @@ object DeviceRep {
     // απλές συσκευές
     def apply[A <: DeviceData](
         device: GenDevice[A], 
-        deviceId: String, 
         modulePath: String,
         buildingId: String
     ): Behavior[Msg] = 
@@ -43,17 +42,16 @@ object DeviceRep {
                 // publish στο /device/deviceid/cmd για να στέλνει εντολές απο τα παραπάνω επίπεδα
 
                 context.spawn[Nothing](
-                    DeviceDataStreamer(device, deviceId, modulePath, s"Data-$buildingId", context.self), 
-                    name = s"SUB_$deviceId"
+                    DeviceDataStreamer(device, modulePath, s"Data-$buildingId", context.self), 
+                    name = s"SUB_${device.id}"
                 )
 
-                new GenDeviceRep(context, device, deviceId, modulePath).running(None)
+                new GenDeviceRep(context, device, modulePath).running(None)
             }
 
     // έξυπνες συσκευές
     def apply[A <: DeviceData, B <: DeviceCmd](
         device: SmartDevice[A, B], 
-        deviceId: String, 
         modulePath: String,
         buildingId: String
     ): Behavior[Msg] = 
@@ -67,13 +65,13 @@ object DeviceRep {
             
                 context.spawn[Nothing](
                     Behaviors.supervise[Nothing](
-                        DeviceDataStreamer(device, deviceId, modulePath, s"Data-$buildingId", context.self) 
+                        DeviceDataStreamer(device,modulePath, s"Data-$buildingId", context.self) 
                         
                     ).onFailure(SupervisorStrategy.restartWithBackoff(1.second, 30.seconds, 0.2d)),
-                    name = s"SUB_$deviceId"
+                    name = s"SUB_${device.id}"
                 )
 
-                new SmartDeviceRep(context, device, deviceId, modulePath).running(None)
+                new SmartDeviceRep(context, device, modulePath).running(None)
             }
     
 }

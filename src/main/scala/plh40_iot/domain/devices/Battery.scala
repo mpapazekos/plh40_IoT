@@ -4,6 +4,7 @@ import scala.util.Random
 
 
 import plh40_iot.domain.DeviceTypes._
+import plh40_iot.util.Utils.currentTimestamp
 
 sealed trait BatteryStatus 
 
@@ -12,7 +13,7 @@ case object Discharging extends BatteryStatus
 case object Off extends BatteryStatus
 
 
-final case class BatteryData(percentage: Double, status: BatteryStatus) extends DeviceData {
+final case class BatteryData(deviceId: String, percentage: Double, status: BatteryStatus, timestamp: String) extends DeviceData {
     require(percentage >= 0 && percentage <= 100)
 }
 
@@ -21,7 +22,7 @@ sealed trait BatteryCmd extends DeviceCmd
 final case class ChangeStatus(status: BatteryStatus) extends BatteryCmd
 
 
-object Battery extends SmartDevice[BatteryData, BatteryCmd] {
+final class Battery(deviceId: String) extends SmartDevice[BatteryData, BatteryCmd](deviceId) {
 
     import spray.json._
     import plh40_iot.domain.DeviceJsonProtocol._
@@ -30,32 +31,35 @@ object Battery extends SmartDevice[BatteryData, BatteryCmd] {
     override val typeStr = "battery"
     
     override def initState = 
-        BatteryData(100d, Discharging)
+        BatteryData(deviceId, 100d, Discharging, currentTimestamp())
 
     override def generateData(state: BatteryData) = {
-        state.status match {
-            case Charging => 
-                if (state.percentage >= 80.0) 
-                    BatteryData(state.percentage, Discharging)
-                else
-                    BatteryData(state.percentage + 0.5, Charging)
 
-            case Discharging =>
-                if (state.percentage <= 20.0) 
-                    BatteryData(state.percentage, Charging)
-                else {
-                    val randomDrain = Random.between(0.1, 3.0)
-                    BatteryData(state.percentage - randomDrain, Discharging)
-                }
-                    
-            case Off => state
-        }
+        val (newPercentage, newStatus) = 
+            state.status match {
+                case Charging => 
+                    if (state.percentage >= 80.0) 
+                        (state.percentage, Discharging)
+                    else
+                        (state.percentage + 0.5, Charging)
+                case Discharging =>
+                    if (state.percentage <= 20.0) 
+                        (state.percentage, Charging)
+                    else {
+                        val randomDrain = Random.between(0.1, 3.0)
+                        (state.percentage - randomDrain, Discharging)
+                    }
+                        
+                case Off => (state.percentage, state.status)
+            }
+
+        BatteryData(deviceId, newPercentage, newStatus, currentTimestamp())
     }
 
     override def execute(cmd: BatteryCmd, data: BatteryData): BatteryData = 
         cmd match {
             case ChangeStatus(status) =>
-                BatteryData(data.percentage, status )
+                BatteryData(deviceId, data.percentage, status, currentTimestamp())
         }
 
     override def toJsonString(data: BatteryData): Either[String, String] =

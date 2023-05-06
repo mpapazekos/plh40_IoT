@@ -27,11 +27,10 @@ import plh40_iot.domain.RegisterInfo
 
 
 final class SmartDeviceActor[A <: DeviceData, B <: DeviceCmd] (
-    id: String, 
     ctx: ActorContext[DeviceActor.Msg], 
     device: SmartDevice[A, B], 
     modulePath: String
-) extends GenDeviceActor(id, ctx, device, modulePath) {
+) extends GenDeviceActor(ctx, device, modulePath) {
 
    import DeviceActor._
 
@@ -60,7 +59,7 @@ final class SmartDeviceActor[A <: DeviceData, B <: DeviceCmd] (
 }
 
 
-sealed class GenDeviceActor[A <: DeviceData] (id: String, ctx: ActorContext[DeviceActor.Msg], device: GenDevice[A], modulePath: String){
+sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg], device: GenDevice[A], modulePath: String){
 
     import DeviceActor._
     import MqttConnector._
@@ -80,7 +79,7 @@ sealed class GenDeviceActor[A <: DeviceData] (id: String, ctx: ActorContext[Devi
             .receiveMessagePartial {
                 case Tick => 
                     val payload = 
-                        RegisterInfo(groupId, id, device.typeStr, modulePath).toJson.toString()
+                        RegisterInfo(groupId, device.id, device.typeStr, modulePath).toJson.toString()
                       
                     val mqttMessage = 
                         MqttMessage(registerTopic, ByteString(payload))
@@ -91,7 +90,7 @@ sealed class GenDeviceActor[A <: DeviceData] (id: String, ctx: ActorContext[Devi
                 case RegisterMsg(info, replyTo) =>
                     info match {
                         case "REGISTERED" | "DEVICE ALREADY RUNNING" => 
-                            ctx.log.info("REGISTERED {}", id)
+                            ctx.log.info("REGISTERED {}", device.id)
                             replyTo ! StatusReply.Ack
                             registerStreamKillSwitch.shutdown()
                             running(device.initState)
@@ -145,7 +144,7 @@ sealed class GenDeviceActor[A <: DeviceData] (id: String, ctx: ActorContext[Devi
     
         //subsciber
         val subSource = 
-            MqttConnector.subscriberSource(s"REG_$id", MqttSubscriptions(s"/register/$id", MqttQoS.AtLeastOnce))
+            MqttConnector.subscriberSource(s"REG_${device.id}", MqttSubscriptions(s"/register/${device.id}", MqttQoS.AtLeastOnce))
 
         val actorFlow =
             ActorFlow.askWithStatus[String, RegisterMsg, Done](ctx.self)(RegisterMsg.apply)
@@ -176,6 +175,6 @@ sealed class GenDeviceActor[A <: DeviceData] (id: String, ctx: ActorContext[Devi
                 .withAttributes(ActorAttributes.supervisionStrategy(Supervision.restartingDecider))
 
   
-        MqttConnector.runClientStream(s"PUB_$id", actorSource)
+        MqttConnector.runClientStream(s"PUB_${device.id}", actorSource)
     }
 }

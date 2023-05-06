@@ -43,7 +43,7 @@ object RegisterListener {
                     MqttSubscriptions(s"/$buildingId/register", MqttQoS.atLeastOnce)
                 
                 val subscriberSource =  
-                    MqttConnector.subscriberSource("DEVICE_LISTENER", subscriptions)
+                    MqttConnector.subscriberSource(s"DEVICE_LISTENER_$buildingId", subscriptions)
 
                             
                 val flowThroughActor = 
@@ -61,7 +61,7 @@ object RegisterListener {
                         }
                         
                 val sinkToBroker = 
-                    MqttConnector.publisherSink("DEVICE_LISTENER_ACK")
+                    MqttConnector.publisherSink(s"DEVICE_LISTENER_ACK_$buildingId")
 
                 // receive message with acknowledgement
                 // signal arrival to mqtt broker and map to message payload if successfull 

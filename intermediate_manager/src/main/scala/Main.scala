@@ -7,7 +7,7 @@ object Main {
     def main(args: Array[String]): Unit = {  
 
         if (args.isEmpty) {
-            val config = ConfigFactory.load("intermediate_manager")
+            val config = ConfigFactory.load()
             val buildingId = config.getString("intermediate_manager.building.id")
 
             ActorSystem(DeviceManager(buildingId), s"Building-$buildingId-Manager-System", config)
