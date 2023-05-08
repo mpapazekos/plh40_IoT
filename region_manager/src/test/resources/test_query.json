@@ -1,0 +1,60 @@
+{
+    "buildings": [
+      {
+        "building": "building1",
+        "groupList": {
+          "queryId": "query1",
+          "groups": [
+            {
+              "group": "error_group",
+              "devices": []
+            },
+            {
+              "group": "module1",
+              "devices": [
+                "thermostat1-b1",
+                "battery1-b1",
+                "error_id"
+              ]
+            },
+            {
+              "group": "module2",
+              "devices": [
+                "thermostat2-b1",
+                "battery2-b1",
+                "error_id"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "building": "building2",
+        "groupList": {
+          "queryId": "query1",
+          "groups": [
+            {
+              "group": "error_group",
+              "devices": []
+            },
+            {
+              "group": "module1",
+              "devices": [
+                "thermostat1-b2",
+                "battery1-b2",
+                "error_id"
+              ]
+            },
+            {
+              "group": "module2",
+              "devices": [
+                "thermostat2-b2",
+                "battery2-b2",
+                "error_id"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }

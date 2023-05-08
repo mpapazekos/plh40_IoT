@@ -2,9 +2,9 @@ package plh40_iot.domain.devices
 
 import scala.util.Random
 
-
 import plh40_iot.domain.DeviceTypes._
 import plh40_iot.util.Utils.currentTimestamp
+import plh40_iot.domain.devices.DeviceJsonProtocol
 
 sealed trait BatteryStatus 
 
@@ -25,7 +25,7 @@ final case class ChangeStatus(status: BatteryStatus) extends BatteryCmd
 final class Battery(deviceId: String) extends SmartDevice[BatteryData, BatteryCmd](deviceId) {
 
     import spray.json._
-    import plh40_iot.domain.DeviceJsonProtocol._
+    import DeviceJsonProtocol._
     import plh40_iot.util.Utils.tryParse
 
     override val typeStr = "battery"
@@ -46,7 +46,7 @@ final class Battery(deviceId: String) extends SmartDevice[BatteryData, BatteryCm
                     if (state.percentage <= 20.0) 
                         (state.percentage, Charging)
                     else {
-                        val randomDrain = Random.between(0.1, 3.0)
+                        val randomDrain = Random.between(0.5, 3.0)
                         (state.percentage - randomDrain, Discharging)
                     }
                         

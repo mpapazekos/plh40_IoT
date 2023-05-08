@@ -1,0 +1,118 @@
+{
+    "buildings": [
+      {
+        "building": "building1",
+        "cmdList": {
+          "commands": [
+            {
+              "groupId": "error_group",
+              "devices": []
+            },
+            {
+              "groupId": "module1",
+              "devices": [
+                {
+                  "deviceId": "thermostat1-b1",
+                  "command": {
+                    "name": "set",
+                    "value": 38.4
+                  }
+                },
+                {
+                  "deviceId": "battery1-b1",
+                  "command": {
+                    "name": "change-status",
+                    "value": "discharging"
+                  }
+                },
+                {
+                  "deviceId": "error_id",
+                  "command": {}
+                }
+              ]
+            },
+            {
+              "groupId": "module2",
+              "devices": [
+                {
+                  "deviceId": "thermostat2-b1",
+                  "command": {
+                    "name": "set",
+                    "value": 25.4
+                  }
+                },
+                {
+                  "deviceId": "battery2-b1",
+                  "command": {
+                    "name": "change-status",
+                    "value": "discharging"
+                  }
+                },
+                {
+                  "deviceId": "error_id",
+                  "command": {}
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "building": "building2",
+        "cmdList": {
+          "commands": [
+            {
+              "groupId": "error_group",
+              "devices": []
+            },
+            {
+              "groupId": "module1",
+              "devices": [
+                {
+                  "deviceId": "thermostat1-b2",
+                  "command": {
+                    "name": "set",
+                    "value": 38.4
+                  }
+                },
+                {
+                  "deviceId": "battery1-b2",
+                  "command": {
+                    "name": "change-status",
+                    "value": "discharging"
+                  }
+                },
+                {
+                  "deviceId": "error_id",
+                  "command": {}
+                }
+              ]
+            },
+            {
+              "groupId": "module2",
+              "devices": [
+                {
+                  "deviceId": "thermostat2-b2",
+                  "command": {
+                    "name": "set",
+                    "value": 25.4
+                  }
+                },
+                {
+                  "deviceId": "battery2-b2",
+                  "command": {
+                    "name": "change-status",
+                    "value": "discharging"
+                  }
+                },
+                {
+                  "deviceId": "error_id",
+                  "command": {}
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }

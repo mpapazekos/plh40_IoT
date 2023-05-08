@@ -1,9 +1,8 @@
-package plh40_iot.domain
+package plh40_iot.domain.devices
 
 import spray.json._
 import DefaultJsonProtocol._
 
-import plh40_iot.domain.devices._
 
 object DeviceJsonProtocol {
 

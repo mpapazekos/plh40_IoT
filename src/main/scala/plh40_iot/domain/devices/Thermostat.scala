@@ -5,6 +5,7 @@ import scala.util.Random
 import plh40_iot.domain.DeviceTypes._
 
 import plh40_iot.util.Utils.currentTimestamp
+import plh40_iot.domain.devices.DeviceJsonProtocol
 
 sealed trait ThermostatCmd extends DeviceCmd
 
@@ -17,7 +18,7 @@ final class Thermostat(deviceId: String) extends SmartDevice[ThermostatData, The
     import plh40_iot.util.Utils.tryParse
     
     import spray.json._
-    import plh40_iot.domain.DeviceJsonProtocol._
+    import DeviceJsonProtocol._
 
 
     override val typeStr = "thermostat"
