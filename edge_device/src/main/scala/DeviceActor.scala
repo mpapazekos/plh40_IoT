@@ -17,23 +17,23 @@ object DeviceActor {
     final case class RegisterMsg(info: String, replyTo: ActorRef[StatusReply[Done]]) extends Msg
     final case class ExecuteCommand(cmd: DeviceCmd, replyTo: ActorRef[StatusReply[Done]]) extends Msg
     
-    def apply[A <: DeviceData](device: GenDevice[A], buildingId: String, module: String, modulePath: String): Behavior[Msg] =        
+    def apply[A <: DeviceData](device: GenDevice[A], buildingId: String, module: String, modulePath: String, tickPeriod: FiniteDuration): Behavior[Msg] =        
     Behaviors
         .setup { context => 
             Behaviors
                 .withTimers { timers => 
-                    timers.startTimerAtFixedRate(Tick, 3.seconds)
+                    timers.startTimerAtFixedRate(Tick, tickPeriod)
                     new GenDeviceActor[A](context, device, modulePath, buildingId).registering(module, s"/$buildingId/register")
                 }
         }
 
-    def apply[A <: DeviceData, B <: DeviceCmd](device: SmartDevice[A, B], buildingId: String, module: String, modulePath: String): Behavior[Msg] =        
+    def apply[A <: DeviceData, B <: DeviceCmd](device: SmartDevice[A, B], buildingId: String, module: String, modulePath: String, tickPeriod: FiniteDuration): Behavior[Msg] =        
         Behaviors
             .setup { context => 
                 Behaviors
                     .withTimers { timers => 
                         context.spawnAnonymous[Nothing](CmdSubscriber(device.id,modulePath, context.self, device.cmdFromJsonString))
-                        timers.startTimerAtFixedRate(Tick, 3.seconds)
+                        timers.startTimerAtFixedRate(Tick, tickPeriod)
                         new SmartDeviceActor[A, B](context, device, modulePath, buildingId).registering(module, s"/$buildingId/register")
                     }
             }

@@ -1,119 +1,62 @@
 
 import akka.actor.typed.ActorSystem
-import plh40_iot.domain.DeviceTypes
-import com.typesafe.config.ConfigFactory
-import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
+import com.typesafe.config.ConfigFactory
+import plh40_iot.domain.DeviceTypes
+import plh40_iot.util.Utils
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
-//"tm14bb28d24" "bm1516b0a34" "tm26a3009c0" "bm2b7cab08ac"
+import scala.concurrent.duration._
+import akka.actor.typed.Behavior
+
 object Main {
+
+    final case class NewDeviceInfo(
+        deviceType: String, 
+        deviceId: String,  
+        module: String, 
+        publishingTopic: String,
+        dataSendingPeriod: Double
+    )
+
+    final case class InputInfo(buildingId: String, devices: Array[NewDeviceInfo])
+
+    implicit val newDeviceFormat = jsonFormat5(NewDeviceInfo)
+    implicit val inputFormat = jsonFormat2(InputInfo) 
+
+    // ======================================================================================
 
     def main(args: Array[String]): Unit = {
         
-        //singleDevice(args)
-        buildingDevices(args)
-    
-    }
-
-    private def buildingDevices(args: Array[String]): Unit = {
-
-        import DeviceTypes.getDevice
-
-        val buildingId = 
-            if (args.isEmpty) ConfigFactory.load().getString("edge_device.building.id")
+        val deviceListJson = 
+            if (args.isEmpty) ConfigFactory.load().getString("edge_device.devices.list.json")
             else args(0)
 
-        val rootBehavior: Behavior[Nothing] = 
-            Behaviors.setup[Nothing]{ context => 
-                
-                // module1 -----------------------------------------------------------
-                val device1_id = "4bb28d24"
-                val device1 = 
-                    DeviceActor(
-                        getDevice("thermostat", device1_id).getOrElse(???), 
-                        buildingId, "module1", s"/$buildingId/module1/temperature/$device1_id"
-                    )
+        Utils
+            .tryParse(deviceListJson.parseJson.convertTo[InputInfo]) match {
+                case Left(parseError) => 
+                    println(parseError)
+                    sys.exit(1) 
+                case Right(input) =>
+                    ActorSystem[Nothing](rootBehavior(input),s"${input.buildingId}-actor-system")
+            }
+    }
 
-                val device2_id = "516b0a34"
-                val device2 = 
-                    DeviceActor(
-                        getDevice("battery", device2_id).getOrElse(???), 
-                        buildingId, "module1", s"/$buildingId/module1/status/$device2_id"
-                    )
-
-                // module2 ---------------------------------------------------
-                val device3_id = "6a3009c0"
-                val device3 = 
-                    DeviceActor(
-                        getDevice("thermostat", device3_id).getOrElse(???), 
-                        buildingId, "module2", s"/$buildingId/module2/temperature/$device3_id"
-                    )
-
-                val device4_id = "7cab08ac"
-                val device4 = 
-                    DeviceActor(
-                        getDevice("battery", device4_id).getOrElse(???), 
-                        buildingId, "module2", s"/$buildingId/module2/status/$device4_id"
-                    )
-
-                context.spawnAnonymous(device1)
-                context.spawnAnonymous(device2)
-                context.spawnAnonymous(device3)
-                context.spawnAnonymous(device4)
-    
+    private def rootBehavior(input: InputInfo): Behavior[Nothing] = 
+        Behaviors
+            .setup[Nothing]{ context => 
+                input.devices.foreach { d =>
+                    DeviceTypes.getDevice(d.deviceType, d.deviceId) match {
+                        case Left(errorMsg) => 
+                            context.log.error(errorMsg) 
+                        case Right(device) =>
+                            context.log.info(s"Spawning new ${d.deviceType} with id: ${d.deviceId} .") 
+                            context.spawnAnonymous(
+                                DeviceActor(device, input.buildingId, d.module, d.publishingTopic, d.dataSendingPeriod.seconds)
+                            )               
+                    }
+                }
                 Behaviors.empty
             }
-
-        ActorSystem[Nothing](rootBehavior,s"$buildingId-actor-system")
-    }
-
-
-    private def singleDevice(args: Array[String]): Unit = {
-        if (args.isEmpty) {
-            val config = ConfigFactory.load()
-
-            val deviceType = config.getString("edge_device.device.type")
-            val deviceId   = config.getString("edge_device.device.id")
-
-            DeviceTypes
-                .getDevice(deviceType, deviceId) match {
-                    case Right(device) =>
-
-                        val buildingId = config.getString("edge_device.building.id")
-                        val module =     config.getString("edge_device.building.module")
-                        val pubTopic =   config.getString("edge_device.mqtt.pubTopic")
-                        
-                        ActorSystem(
-                            DeviceActor(device, buildingId, module, s"/$buildingId/$module/$pubTopic/$deviceId"), 
-                            s"${device.typeStr}_edge_device_system",
-                            config
-                        )
-
-                    case Left(errorMsg) => 
-                        println(errorMsg)
-                        sys.exit(1)
-                }  
-        } 
-        else {
-            
-            require(
-                args.length == 5,
-                "Invalid number of arguements. Correct use: [device_type] [device_id] [buildingId] [module] [publishing_topic]"
-            )
-            
-            DeviceTypes.getDevice(args(0), args(1)) match {
-                case Right(device) =>
-                    val (deviceId, buildingId, module, pubTopic) = (args(1), args(2), args(3), args(4))
-                    
-                    ActorSystem(
-                        DeviceActor(device, buildingId, module, s"/$buildingId/$module/$pubTopic/$deviceId"), 
-                        s"${device.typeStr}_edge_device_system"
-                    )
-
-                case Left(errorMsg) => 
-                    println(errorMsg)
-                    sys.exit(1)
-            }       
-        } 
-    }
 }
