@@ -1,0 +1,125 @@
+---
+version: '3'
+services:
+  #-----------------------------------------------------------
+  mqtt-broker:
+   platform: linux/arm64/v8
+   image: arm64v8/eclipse-mosquitto:latest
+   pull_policy: missing
+   container_name: mosquitto-broker
+   restart: always
+   hostname: mqtt-broker
+   ports:
+     - "1883:1883"
+     - "9001:9001"
+   volumes:
+     - ${PWD}/mosquitto.conf:/mosquitto/config/mosquitto.conf
+  
+  #-----------------------------------------------------------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.2
+    pull_policy: missing
+    container_name: zookeeper
+    restart: on-failure
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  
+  #-----------------------------------------------------------
+  kafka-broker:
+    image: confluentinc/cp-kafka:7.3.2
+    pull_policy: missing
+    container_name: kafka-broker
+    restart: on-failure
+    hostname: kafka-broker
+    ports:
+    # To learn about configuring Kafka for access across networks see
+    # https://www.confluent.io/blog/kafka-client-cannot-connect-to-broker-on-aws-on-docker-etc/
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://kafka-broker:29092
+      # sed -e "s/{HOST_IP_ADDRESS}/???.???.???.???/g" docker-compose.yml | docker compose --file - up -d
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://{HOST_IP_ADDRESS}:9092, PLAINTEXT_INTERNAL://kafka-broker:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      
+  #-----------------------------------------------------------    
+  region1:
+   image: plh40-iot/region_manager:latest
+   pull_policy: never
+   container_name: Region1
+   hostname: region1
+   ports: 
+     - "0:9003"
+   depends_on:
+     - kafka-broker
+   environment:
+     KAFKA_BOOTSTRAP_SERVERS: kafka-broker:9092
+     
+  #-----------------------------------------------------------   
+  building1:
+   image: plh40-iot/intermediate_manager:latest
+   pull_policy: never
+   container_name: Building1
+   hostname: building1
+   ports: 
+    - "0:9002"
+   depends_on:
+    - mqtt-broker
+    - kafka-broker
+   environment:
+    MQTT_HOSTNAME: mqtt-broker
+    KAFKA_BOOTSTRAP_SERVERS: kafka-broker:9092
+    BUILDING_ID: building1
+     
+  #-----------------------------------------------------------
+  building2:
+   image: plh40-iot/intermediate_manager:latest
+   pull_policy: never
+   container_name: Building2
+   hostname: building2
+   ports: 
+    - "0:9002"
+   depends_on:
+    - mqtt-broker
+    - kafka-broker
+   environment:
+    MQTT_HOSTNAME: mqtt-broker
+    KAFKA_BOOTSTRAP_SERVERS: kafka-broker:9092
+    BUILDING_ID: building2
+
+  #-----------------------------------------------------------
+  edge_devices_building1:
+   platform: linux/arm64/v8
+   image: plh40-iot/edge_devices:latest
+   pull_policy: never
+   container_name: Edge_devices_building1
+   ports: 
+    - "0:9001"
+   depends_on:
+    - mqtt-broker
+   environment:
+    MQTT_HOSTNAME: mqtt-broker
+   env_file: 
+    edge_devices_building1.env
+
+  #-----------------------------------------------------------
+  edge_devices_building2:
+   platform: linux/arm64/v8
+   image: plh40-iot/edge_devices:latest
+   pull_policy: never
+   container_name: Edge_devices_building2
+   ports: 
+    - "0:9001"
+   depends_on:
+    - mqtt-broker
+   environment:
+    MQTT_HOSTNAME: mqtt-broker
+   env_file: 
+    edge_devices_building2.env
