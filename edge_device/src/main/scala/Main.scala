@@ -53,7 +53,13 @@ object Main {
                         case Right(device) =>
                             context.log.info(s"Spawning new ${d.deviceType} with id: ${d.deviceId} .") 
                             context.spawnAnonymous(
-                                DeviceActor(device, input.buildingId, d.module, d.publishingTopic, d.dataSendingPeriod.seconds)
+                                DeviceActor(
+                                    device, 
+                                    input.buildingId, 
+                                    d.module, 
+                                    modulePath = s"/${input.buildingId}/${d.module}/${d.publishingTopic}/${d.deviceId}", 
+                                    d.dataSendingPeriod.seconds
+                                )
                             )               
                     }
                 }

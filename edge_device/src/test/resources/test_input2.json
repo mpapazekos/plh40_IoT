@@ -26,7 +26,7 @@
         "deviceType": "battery",
         "deviceId": "battery2-b2",
         "module": "module2",
-        "publishingTopic": "temperature",
+        "publishingTopic": "status",
         "dataSendingPeriod": 6
       }
     ]
