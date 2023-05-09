@@ -34,7 +34,7 @@
           "queryId": "query1",
           "groups": [
             {
-              "group": "error_group",
+              "group": "error_group-b2",
               "devices": []
             },
             {
@@ -42,7 +42,7 @@
               "devices": [
                 "thermostat1-b2",
                 "battery1-b2",
-                "error_id"
+                "error_id-b2"
               ]
             },
             {
@@ -50,7 +50,7 @@
               "devices": [
                 "thermostat2-b2",
                 "battery2-b2",
-                "error_id"
+                "error_id-b2"
               ]
             }
           ]

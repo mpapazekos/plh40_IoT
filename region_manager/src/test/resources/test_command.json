@@ -72,14 +72,14 @@
                   "deviceId": "thermostat1-b2",
                   "command": {
                     "name": "set",
-                    "value": 38.4
+                    "value": 4.5
                   }
                 },
                 {
                   "deviceId": "battery1-b2",
                   "command": {
                     "name": "change-status",
-                    "value": "discharging"
+                    "value": "charging"
                   }
                 },
                 {
@@ -95,14 +95,14 @@
                   "deviceId": "thermostat2-b2",
                   "command": {
                     "name": "set",
-                    "value": 25.4
+                    "value": 17.2
                   }
                 },
                 {
                   "deviceId": "battery2-b2",
                   "command": {
                     "name": "change-status",
-                    "value": "discharging"
+                    "value": "charging"
                   }
                 },
                 {
