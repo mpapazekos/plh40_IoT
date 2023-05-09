@@ -6,6 +6,8 @@ val AlpakkaKafkaVersion = "4.0.0"
 val AlpakkaMqttVersion = "5.0.0"
 val LogbackVersion = "1.4.6"
 
+val dockerRepo = "zekoms"
+
 lazy val commonScalacOptions = Seq(
   "-deprecation",
   "-feature",
@@ -70,7 +72,7 @@ lazy val edge_device =
     .settings(
       dockerBaseImage := "arm64v8/eclipse-temurin:11.0.19_7-jre",
       dockerBuildCommand ++= Seq("--platform=linux/arm64/v8"),
-      packageName := "plh40-iot/edge_devices",
+      packageName := s"$dockerRepo/edge_devices",
       version := "latest",
       dockerExposedPorts ++= Seq(9001)
     )
@@ -95,7 +97,7 @@ lazy val intermediate_manager =
     .enablePlugins(JavaAppPackaging, DockerPlugin)
     .settings(
       dockerBaseImage := "amd64/eclipse-temurin:11.0.19_7-jre",
-      packageName := "plh40-iot/intermediate_manager",
+      packageName := s"$dockerRepo/intermediate_manager",
       version := "latest",
       dockerExposedPorts ++= Seq(9002)
     )
@@ -119,7 +121,7 @@ lazy val region_manager =
     .enablePlugins(JavaAppPackaging, DockerPlugin)
     .settings(
       dockerBaseImage := "amd64/eclipse-temurin:11.0.19_7-jre",
-      packageName := "plh40-iot/region_manager",
+      packageName := s"$dockerRepo/region_manager",
       version := "latest",
       dockerExposedPorts ++= Seq(9003)
     )

@@ -1,4 +1,5 @@
 ---
+# sed -e "s/{HOST_IP_ADDRESS}/???.???.???.???/g" docker-compose.yml | docker compose --file - up -d
 version: '3'
 services:
   #-----------------------------------------------------------
@@ -43,7 +44,6 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://kafka-broker:29092
-      # sed -e "s/{HOST_IP_ADDRESS}/???.???.???.???/g" docker-compose.yml | docker compose --file - up -d
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://{HOST_IP_ADDRESS}:9092, PLAINTEXT_INTERNAL://kafka-broker:29092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -51,8 +51,8 @@ services:
       
   #-----------------------------------------------------------    
   region1:
-   image: plh40-iot/region_manager:latest
-   pull_policy: never
+   image: zekoms/region_manager:latest
+   pull_policy: missing
    container_name: Region1
    hostname: region1
    ports: 
@@ -64,8 +64,8 @@ services:
      
   #-----------------------------------------------------------   
   building1:
-   image: plh40-iot/intermediate_manager:latest
-   pull_policy: never
+   image: zekoms/intermediate_manager:latest
+   pull_policy: missing
    container_name: Building1
    hostname: building1
    ports: 
@@ -80,8 +80,8 @@ services:
      
   #-----------------------------------------------------------
   building2:
-   image: plh40-iot/intermediate_manager:latest
-   pull_policy: never
+   image: zekoms/intermediate_manager:latest
+   pull_policy: missing
    container_name: Building2
    hostname: building2
    ports: 
@@ -97,8 +97,8 @@ services:
   #-----------------------------------------------------------
   edge_devices_building1:
    platform: linux/arm64/v8
-   image: plh40-iot/edge_devices:latest
-   pull_policy: never
+   image: zekoms/edge_devices:latest
+   pull_policy: missing
    container_name: Edge_devices_building1
    ports: 
     - "0:9001"
@@ -112,8 +112,8 @@ services:
   #-----------------------------------------------------------
   edge_devices_building2:
    platform: linux/arm64/v8
-   image: plh40-iot/edge_devices:latest
-   pull_policy: never
+   image: zekoms/edge_devices:latest
+   pull_policy: missing
    container_name: Edge_devices_building2
    ports: 
     - "0:9001"
