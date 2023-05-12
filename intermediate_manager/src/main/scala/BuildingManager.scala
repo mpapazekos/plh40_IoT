@@ -3,16 +3,15 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.Behaviors
 import akka.pattern.StatusReply
-
+import plh40_iot.domain.ParsedCommands
+import plh40_iot.domain.ParsedQuery
+import plh40_iot.domain.RegisterInfo
 import plh40_iot.util.Aggregator
 
 import scala.collection.immutable.HashMap
 import scala.concurrent.duration.DurationInt
-import plh40_iot.domain.ParsedQuery
-import plh40_iot.domain.RegisterInfo
-import plh40_iot.domain.ParsedCommands
 
-object DeviceManager {
+object BuildingManager {
 
     type GroupToJsonInfo = Map[String, Iterable[String]]
 
@@ -37,13 +36,13 @@ object DeviceManager {
     final case class SendCommands(parsedCmds: ParsedCommands, replyTo: ActorRef[StatusReply[String]]) extends Msg
    
     def apply(buildingId: String): Behavior[Msg] = 
-       Behaviors.setup(ctx => new DeviceManager(ctx, buildingId).mainBehavior())  
+       Behaviors.setup(ctx => new BuildingManager(ctx, buildingId).mainBehavior())  
 }
 
 
-final class DeviceManager private (context: ActorContext[DeviceManager.Msg], buildingId: String) {
+final class BuildingManager private (context: ActorContext[BuildingManager.Msg], buildingId: String) {
 
-    import DeviceManager._
+    import BuildingManager._
     import DeviceGroup.{GetLatestDataFrom, AggregatedData}
 
     private var groupToActor: HashMap[String, ActorRef[DeviceGroup.Msg]] = HashMap.empty

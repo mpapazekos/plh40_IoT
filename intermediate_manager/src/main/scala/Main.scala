@@ -10,7 +10,7 @@ object Main {
             val config = ConfigFactory.load()
             val buildingId = config.getString("intermediate_manager.building.id")
 
-            ActorSystem(DeviceManager(buildingId), s"Building-$buildingId-Manager-System", config)
+            ActorSystem(BuildingManager(buildingId), s"Building-$buildingId-Manager-System", config)
         }
         else {
             
@@ -18,7 +18,7 @@ object Main {
         
             val buildingId = args(0)
 
-            ActorSystem(DeviceManager(buildingId), s"Building-$buildingId-Manager-System")
+            ActorSystem(BuildingManager(buildingId), s"Building-$buildingId-Manager-System")
         } 
        
     } 

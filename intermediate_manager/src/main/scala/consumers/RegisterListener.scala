@@ -19,7 +19,7 @@ import plh40_iot.domain.RegisterInfo
 
 object RegisterListener {
   
-    import DeviceManager.RegisterDevice
+    import BuildingManager.RegisterDevice
     import DeviceGroup.{DeviceCreated, AlreadyRunning, CouldNotCreateDevice, Response}
 
 
@@ -57,7 +57,7 @@ object RegisterListener {
                                     case CouldNotCreateDevice(devId, error) => (devId,s"COULD NOT CREATE DEVICE: $error")         
                                 }
 
-                            MqttMessage(s"$buildingId/register/$devId", ByteString(payload))
+                            MqttMessage(s"/$buildingId/register/$devId", ByteString(payload))
                         }
                         
                 val sinkToBroker = 

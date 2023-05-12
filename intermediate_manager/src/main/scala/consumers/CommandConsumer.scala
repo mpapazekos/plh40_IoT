@@ -10,7 +10,6 @@ import akka.kafka.scaladsl.Consumer
 import akka.stream.typed.scaladsl.ActorFlow
 import akka.util.Timeout
 import plh40_iot.domain.ParsedCommands
-
 import plh40_iot.util.KafkaConnector
 import spray.json._
 
@@ -20,7 +19,7 @@ import scala.concurrent.duration.DurationInt
 //{"commands":[{"groupId":"test_group1","devices":[]},{"groupId":"factory","devices":[{"deviceId":"tb1","command":{"name":"set","value":38.4}}]},{"groupId":"room","devices":[{"deviceId":"bb1","command":{"name":"change-status","value":"charging"}}]}]}
 object CommandConsumer {
     
-    import DeviceManager.SendCommands
+    import BuildingManager.SendCommands
  
     /**
       * Connects with a Kafka broker to consume commands for the devices in this building. 
@@ -32,11 +31,11 @@ object CommandConsumer {
                 ...
             ] 
         } .
-      * Each element is mapped to an object for the DeviceManager.
+      * Each element is mapped to an object for the BuildingManager.
       * The list of objects is sent in a message and the result is awaited.
       * @param buildingId: Used for connecting to a specific kafka topic
       */
-    def apply(buildingId: String, deviceManager: ActorRef[DeviceManager.Msg]): Behavior[Nothing] =
+    def apply(buildingId: String, buildingManager: ActorRef[BuildingManager.Msg]): Behavior[Nothing] =
         Behaviors
             .setup[Nothing]{ context =>
 
@@ -49,13 +48,13 @@ object CommandConsumer {
 
                 val committerSettings = CommitterSettings(context.system)
 
-                val deviceManagerFlow = 
+                val buildingManagerFlow = 
                     ActorFlow
-                        .askWithStatusAndContext[ParsedCommands, SendCommands, String, CommittableOffset](deviceManager)(SendCommands.apply)
+                        .askWithStatusAndContext[ParsedCommands, SendCommands, String, CommittableOffset](buildingManager)(SendCommands.apply)
         
                 KafkaConnector
                     .committableSourceWithOffsetContext(consumerSettings, Subscriptions.topics(s"Command-$buildingId"), parseCommands)
-                    .via(deviceManagerFlow)
+                    .via(buildingManagerFlow)
                     .map(result => print(result))
                     .toMat(Committer.sinkWithOffsetContext(committerSettings))(Consumer.DrainingControl.apply)
                     .run()

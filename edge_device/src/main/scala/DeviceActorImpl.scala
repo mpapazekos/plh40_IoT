@@ -145,7 +145,7 @@ sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg]
     
         //subsciber
         val subSource = 
-            MqttConnector.subscriberSource(s"REG_${device.id}", MqttSubscriptions(s"$buildingId/register/${device.id}", MqttQoS.AtLeastOnce))
+            MqttConnector.subscriberSource(s"REG_${device.id}", MqttSubscriptions(s"/$buildingId/register/${device.id}", MqttQoS.AtLeastOnce))
 
         val actorFlow =
             ActorFlow.askWithStatus[String, RegisterMsg, Done](ctx.self)(RegisterMsg.apply)

@@ -11,13 +11,11 @@ import akka.kafka.scaladsl.Producer
 import akka.stream.typed.scaladsl.ActorFlow
 import akka.util.Timeout
 import org.apache.kafka.clients.producer.ProducerRecord
+import plh40_iot.domain.ParsedQuery
 import plh40_iot.util.KafkaConnector
 import spray.json._
 
 import scala.concurrent.duration.DurationInt
-
-
-import plh40_iot.domain.ParsedQuery
 
     /**
      * { "queryId": "query1", "groups": [ { "group": "test_group", "devices": ["error_id","fc5d8e11-f44e-400f-ab65-d85c2fd958c1","6874cd0f-a7e4-4d2f-85e6-dc1ddd37a75b"]}]}
@@ -30,7 +28,7 @@ import plh40_iot.domain.ParsedQuery
 // με το που εκτελεστεί ένα ερώτημα επιτυχως τα αποτελέσματα προωθούνται στον kafka broker πάλι
 object QueryConsumer {
     
-    import DeviceManager.{QueryDevices, AggregatedResults}
+    import BuildingManager.{QueryDevices, AggregatedResults}
  
     /**
       * Connects with a Kafka broker to consume queries for the devices in this building. 
@@ -43,11 +41,11 @@ object QueryConsumer {
                 ...
             ]
         }.
-      * Each element is mapped to an object for the DeviceManager.
+      * Each element is mapped to an object for the BuildingManager.
       * The list of objects is sent in a message and the result is awaited.
       * @param buildingId: Used for connecting to a specific kafka topic
       */
-    def apply(buildingId: String, deviceManager: ActorRef[DeviceManager.Msg]): Behavior[Nothing] =
+    def apply(buildingId: String, buildingManager: ActorRef[BuildingManager.Msg]): Behavior[Nothing] =
         Behaviors
             .setup[Nothing]{ context =>
 
@@ -63,13 +61,13 @@ object QueryConsumer {
 
                 val committerSettings = CommitterSettings(context.system)
 
-                val deviceManagerFlow = 
+                val buildingManagerFlow = 
                     ActorFlow
-                        .askWithContext[ParsedQuery, QueryDevices, AggregatedResults, CommittableOffset](deviceManager)(QueryDevices.apply)
+                        .askWithContext[ParsedQuery, QueryDevices, AggregatedResults, CommittableOffset](buildingManager)(QueryDevices.apply)
         
                 KafkaConnector
                     .committableSourceWithOffsetContext(consumerSettings, Subscriptions.topics(s"Query-$buildingId"), parseGroups)
-                    .via(deviceManagerFlow)
+                    .via(buildingManagerFlow)
                     .map { aggResults =>
 
                         println(s"\nAGGREGATED: ${aggResults.resultsJson}")
