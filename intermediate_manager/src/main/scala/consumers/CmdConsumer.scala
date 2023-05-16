@@ -17,7 +17,7 @@ import scala.concurrent.duration.DurationInt
 
 //Test command - topic: Command-{buildingId} 
 //{"commands":[{"groupId":"test_group1","devices":[]},{"groupId":"factory","devices":[{"deviceId":"tb1","command":{"name":"set","value":38.4}}]},{"groupId":"room","devices":[{"deviceId":"bb1","command":{"name":"change-status","value":"charging"}}]}]}
-object CommandConsumer {
+object CmdConsumer {
     
     import BuildingManager.SendCommands
  

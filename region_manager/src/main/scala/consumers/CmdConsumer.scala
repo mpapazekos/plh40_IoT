@@ -9,7 +9,6 @@ import akka.kafka.scaladsl.Consumer
 import akka.kafka.scaladsl.Producer
 import akka.stream.typed.scaladsl.ActorFlow
 import akka.util.Timeout
-
 import plh40_iot.util.KafkaConnector
 import spray.json._
 
@@ -18,7 +17,7 @@ import scala.concurrent.duration.DurationInt
   * Test command 
   * {"buildings":[{"building":"building1","cmdList":{"commands":[{"groupId":"error_group","devices":[]},{"groupId":"module1","devices":[{"deviceId":"4bb28d24","command":{"name":"set","value":38.4}},{"deviceId":"516b0a34","command":{"name":"change-status","value":"discharging"}},{"deviceId":"error_id","command":{}}]},{"groupId":"module2","devices":[{"deviceId":"6a3009c0","command":{"name":"set","value":25.4}},{"deviceId":"7cab08ac","command":{"name":"change-status","value":"discharging"}},{"deviceId":"error_id","command":{}}]}]}},{"building":"building2","cmdList":{"commands":[{"groupId":"error_group","devices":[]},{"groupId":"module1","devices":[{"deviceId":"4bb28d24","command":{"name":"set","value":38.4}},{"deviceId":"516b0a34","command":{"name":"change-status","value":"discharging"}},{"deviceId":"error_id","command":{}}]},{"groupId":"module2","devices":[{"deviceId":"6a3009c0","command":{"name":"set","value":25.4}},{"deviceId":"7cab08ac","command":{"name":"change-status","value":"discharging"}},{"deviceId":"error_id","command":{}}]}]}}]}
   */
-object CommandConsumer {
+object CmdConsumer {
   
     import RegionManager.{SendToBuilding, KafkaRecords}
     /** 

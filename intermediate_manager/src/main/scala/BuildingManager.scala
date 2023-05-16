@@ -53,7 +53,7 @@ final class BuildingManager private (context: ActorContext[BuildingManager.Msg],
     // create device query actor
     context.spawn[Nothing](QueryConsumer(buildingId, context.self), "QueryConsumer")
 
-    context.spawn[Nothing](CommandConsumer(buildingId, context.self), "CommandConsumer")
+    context.spawn[Nothing](CmdConsumer(buildingId, context.self), "CmdConsumer")
 
     // διατηρεί έναν κατάλογο με τις ομάδες συσκευών
     def mainBehavior(): Behavior[Msg] = 

@@ -56,7 +56,7 @@ final class RegionManager private (context: ActorContext[RegionManager.Msg], reg
 
     context.spawn[Nothing](
                 Behaviors
-                    .supervise[Nothing](CommandConsumer(regionId, s"$regionId-cmd-group", context.self))
+                    .supervise[Nothing](CmdConsumer(regionId, s"$regionId-cmd-group", context.self))
                     .onFailure[Exception](SupervisorStrategy.restartWithBackoff(0.5.seconds, 20.seconds, 0.2)),
                 name = s"$regionId-cmd-actor"
             )
