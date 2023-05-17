@@ -14,28 +14,36 @@ import akka.stream.scaladsl.RestartSink
 
 object Utils {
 
+    // Generic message type created for readabilty
     type ErrorMessage = String
 
+    /** Tries to execute given code and returns either the defined value or an ErrorMessage. */
     def tryParse[C](code: => C): Either[ErrorMessage, C] = 
         try Right(code)
         catch {
-            case (e: Exception) => Left(e.toString())
+            case (e: Exception) => Left("ERROR: " + e.toString())
         } 
 
+    /** Tries to parse a message of generic type T using the provided function parse.*/
     def tryParse[T, Result](msg: T, parse: T => Result): Either[ErrorMessage, Result] = 
         tryParse(parse(msg))    
 
+    /** Future value of trying to parse a string message using the provided function parse.*/
     def parseMessage[Result](msg: String, parse: String => Result)(implicit ec: ExecutionContext): Future[Either[ErrorMessage, Result]] = 
         Future { 
             tryParse(msg, parse)
         }
 
+    /** Flow that diverts the result of a parsing function to different sink if an error occurs. 
+     *  For now that sink defaults to printing the error message on stdout.
+     */
     def errorHandleFlow[Result]() = 
         Flow[Either[ErrorMessage, Result]]
             .divertTo(Sink.foreach(println), _.isLeft)
             .collect { case Right(result) => result }
 
 
+    /** Convenient method to get string represantation of current timestamp. */
     def currentTimestamp(): String =
         java.time.LocalDateTime.now().toString()
 

@@ -4,10 +4,12 @@ import spray.json._
 
 final case class RegisterInfo(groupId: String, devId: String, devType: String, modulePath: String) 
 
-
 final case class GroupDevices(group: String, devices: List[String])
-
 final case class ParsedQuery(queryId: String, groups: List[GroupDevices])
+
+final case class CommandInfo(deviceId: String, command: JsValue)
+final case class GroupCommandInfo(groupId: String, devices: List[CommandInfo])
+final case class ParsedCommands(commands: List[GroupCommandInfo])
 
 object ProtocolJsonFormats extends DefaultJsonProtocol {
 
@@ -18,8 +20,3 @@ object ProtocolJsonFormats extends DefaultJsonProtocol {
     implicit val groupCmdInfoFormat = jsonFormat2(GroupCommandInfo)
     implicit val parsedCommandsFormat = jsonFormat1(ParsedCommands)
 }
-
-final case class CommandInfo(deviceId: String, command: JsValue)
-final case class GroupCommandInfo(groupId: String, devices: List[CommandInfo])
-final case class ParsedCommands(commands: List[GroupCommandInfo])
-
