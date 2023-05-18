@@ -37,19 +37,13 @@ final class SmartDeviceRep[A <: DeviceData, B <: DeviceCmd](
                     val response = 
                         data match {
                             case None => 
-                                s"""|{
-                                    |  "deviceId": "${device.id}",
-                                    |  "data": "NO DATA YET"
-                                    |}"""
-                                    .stripMargin
+                                s""" { "deviceId": "${device.id}", "data": "NO DATA YET" }"""
+                                    
                             case Some(value) => 
-                                val parsed = device.toJsonString(value.asInstanceOf[A])
-                                val dataRes = parsed.getOrElse(JsString("FAILED TO GET LATEST  DATA"))
-                                s"""{
-                                    |"deviceId": "${device.id}",
-                                    |"data": $dataRes
-                                    |}"""
-                                    .stripMargin
+                                device.toJsonString(value.asInstanceOf[A]) match {
+                                    case Left(error) => s"""{ "error": "FAILED TO GET LATEST DATA: $error "}"""
+                                    case Right(json) => json
+                                }   
                         }
 
                     context.log.info(s"Sending data to: $replyTo")
@@ -62,7 +56,7 @@ final class SmartDeviceRep[A <: DeviceData, B <: DeviceCmd](
 
                     val result =
                         Source
-                            .single(MqttMessage(s"$modulePath/cmd", ByteString(cmdJson)).withQos(MqttQoS.atLeastOnce))
+                            .single(MqttMessage(s"$modulePath/cmd", ByteString(cmdJson)))
                             .runWith(mqttSink)
 
                     result.onComplete {

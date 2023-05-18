@@ -11,7 +11,6 @@ import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.RestartSink
 
-
 object Utils {
 
     // Generic message type created for readabilty

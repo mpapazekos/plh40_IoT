@@ -29,11 +29,8 @@ final class GenDeviceRep[A <: DeviceData](
                     val responseJson = 
                         data match {
                             case None => 
-                                s"""|{
-                                    |  "deviceId": "${device.id}",
-                                    |  "data": "NO DATA YET"
-                                    |}"""
-                                    .stripMargin
+                                s""" { "deviceId": "${device.id}", "data": "NO DATA YET" }"""
+                                
                             case Some(value) => 
                                 device.toJsonString(value.asInstanceOf[A]) match {
                                     case Left(error) => s"""{ "error": "FAILED TO GET LATEST DATA: $error "}"""

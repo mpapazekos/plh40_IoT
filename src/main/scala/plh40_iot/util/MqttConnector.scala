@@ -21,10 +21,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import com.typesafe.config.ConfigFactory
 
-
 object MqttConnector {
  
-
     sealed trait Event
 
     // To be sent to actor when the last element to be streamed is communicated.
@@ -61,7 +59,6 @@ object MqttConnector {
                 .toMat(sinkToBroker)(Keep.left)
                 .run()
                 
-        // Επιστρέφεται ο actor που τοποθετεί τα δεδομένα τύπου Event στη ροή
         streamActor
     }
 
