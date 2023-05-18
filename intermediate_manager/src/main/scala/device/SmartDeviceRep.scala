@@ -3,12 +3,10 @@ import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.Behaviors
 import akka.pattern.StatusReply
 import akka.stream.alpakka.mqtt.MqttMessage
-import akka.stream.alpakka.mqtt.MqttQoS
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import plh40_iot.domain.DeviceTypes._
 import plh40_iot.util.MqttConnector
-import spray.json.JsString
 
 import scala.util.Failure
 import scala.util.Success

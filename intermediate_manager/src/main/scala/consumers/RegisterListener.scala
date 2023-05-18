@@ -31,7 +31,7 @@ object RegisterListener {
     // υπεύθυνος για τα δεδομένα αυτά και δίνεταi ως απάντηση ένα μήνυμα επιτυχίας. 
     // Σε περίπτωση που δεν είναι δυνατή η επεξεργασία των δεδομένων στέλνεται αντίστοιχο μήνυμα αποτυχίας
     // πίσω στη συσκευή.
-    def apply(buildingId: String, askRef: ActorRef[RegisterDevice]): Behavior[Nothing] = 
+    def apply(buildingId: String,  buildingManager: ActorRef[RegisterDevice]): Behavior[Nothing] = 
         Behaviors
             .setup[Nothing] { context => 
 
@@ -48,7 +48,7 @@ object RegisterListener {
                             
                 val flowThroughActor = 
                     ActorFlow
-                        .ask[RegisterInfo, RegisterDevice, Response](askRef)(RegisterDevice.apply)
+                        .ask[RegisterInfo, RegisterDevice, Response](buildingManager)(RegisterDevice.apply)
                         .map { response =>
                             val (devId, payload) = 
                                 response match {

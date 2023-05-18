@@ -10,6 +10,7 @@ import plh40_iot.util.Aggregator
 
 import scala.collection.immutable.HashMap
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 
 object DeviceGroup {
 
@@ -24,7 +25,7 @@ object DeviceGroup {
     final case class GetLatestDataFrom(deviceIds: Iterable[String], replyTo: ActorRef[AggregatedData]) extends Msg
     final case class AggregatedData(jsonList: List[String]) extends Msg
 
-    final case class SendToDevices(commandsJson: List[CommandInfo], replyTo: ActorRef[StatusReply[String]]) extends Msg
+    final case class SendToDevices(commands: List[CommandInfo], replyTo: ActorRef[StatusReply[String]]) extends Msg
 
     sealed abstract class Response(deviceId: String) extends Msg
     final case class DeviceCreated(id: String) extends Response(id)
@@ -70,21 +71,20 @@ final class DeviceGroup private (context: ActorContext[DeviceGroup.Msg], groupId
                     Behaviors.same 
             
                 case GetLatestDataFrom(deviceIds, replyTo) => 
-                    context.log.info("RECEIVED {}", deviceIds.mkString)
-                    context.log.info("DEVICE MAP: {}", deviceToActor.mkString)
+                    context.log.debug("RECEIVED {}", deviceIds.mkString)
                     val deviceRefs =
                         deviceIds.collect { case devId if (deviceToActor.contains(devId)) => deviceToActor(devId) }
 
                     if (deviceRefs.isEmpty) 
                         replyTo ! AggregatedData(List(s"""{ "error": "No devices found for group $groupId") }"""))
                     else
-                        latestDataFrom(deviceRefs, replyTo)
+                        latestDataFrom(deviceRefs, replyTo, 5.seconds)
                     Behaviors.same
 
 
-                case SendToDevices(commandsJson, replyTo) => 
-                    context.log.info("RECEIVED {}", commandsJson.mkString)
-                    sendCommandsToDevices(commandsJson, replyTo)
+                case SendToDevices(commands, replyTo) => 
+                    context.log.debug("RECEIVED {}", commands.mkString)
+                    sendCommandsToDevices(commands, replyTo, 5.seconds)
                     Behaviors.same
             }
 
@@ -97,14 +97,14 @@ final class DeviceGroup private (context: ActorContext[DeviceGroup.Msg], groupId
                 case Left(error) => Left(error)
             }
         
-    private def latestDataFrom(devices: Iterable[ActorRef[DeviceRep.Msg]], resultReceiver: ActorRef[AggregatedData]): Unit = {
+    private def latestDataFrom(devices: Iterable[ActorRef[DeviceRep.Msg]], resultReceiver: ActorRef[AggregatedData], timeout: FiniteDuration): Unit = {
         val aggregatorBehavior = 
             Aggregator[DataResponse, AggregatedData](
                 sendRequests = (replyTo => for (device <- devices) device ! RequestData(replyTo)),
                 expectedReplies = devices.size,
                 replyTo =  resultReceiver,
                 aggregateReplies = (replies => AggregatedData(replies.map(_.dataJson).toList)), 
-                timeout = 5.seconds
+                timeout
             )
 
         context.spawnAnonymous(aggregatorBehavior)
@@ -118,12 +118,12 @@ final class DeviceGroup private (context: ActorContext[DeviceGroup.Msg], groupId
          *     ... 
          * )
          */
-    private def sendCommandsToDevices(commandsJson: Iterable[CommandInfo], resultReceiver: ActorRef[StatusReply[String]]): Unit = {
+    private def sendCommandsToDevices(commands: Iterable[CommandInfo], resultReceiver: ActorRef[StatusReply[String]], timeout: FiniteDuration): Unit = {
        
         val aggregatorBehavior = 
             Aggregator.statusReplyCollector[String](
                 sendRequests = { receiver => 
-                    commandsJson.foreach{ devCmd =>
+                    commands.foreach{ devCmd =>
                         val (devId, command) = (devCmd.deviceId, devCmd.command.toString())
                         // find in group
                         if (deviceToActor.contains(devId)) 
@@ -131,14 +131,12 @@ final class DeviceGroup private (context: ActorContext[DeviceGroup.Msg], groupId
                             deviceToActor(devId) ! DeviceRep.PublishCommand(command, receiver)
                         else
                             receiver ! StatusReply.Error(s"Device $devId does not exist")
-                           
-                        
                     }
                 },
-                expectedReplies = commandsJson.size,
+                expectedReplies = commands.size,
                 replyTo = resultReceiver,
                 aggregateReplies = (replies => StatusReply.Success(replies.mkString("\n{",",\n","}\n"))),
-                timeout = 5.seconds
+                timeout
             )
 
         context.spawnAnonymous(aggregatorBehavior)

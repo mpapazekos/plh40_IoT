@@ -10,6 +10,7 @@ import plh40_iot.util.Aggregator
 
 import scala.collection.immutable.HashMap
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 
 object BuildingManager {
 
@@ -47,13 +48,9 @@ final class BuildingManager private (context: ActorContext[BuildingManager.Msg],
 
     private var groupToActor: HashMap[String, ActorRef[DeviceGroup.Msg]] = HashMap.empty
 
-    // create device listener
-    context.spawn[Nothing](RegisterListener(buildingId, context.self), "RegisterListener")
-
-    // create device query actor
-    context.spawn[Nothing](QueryConsumer(buildingId, context.self), "QueryConsumer")
-
-    context.spawn[Nothing](CmdConsumer(buildingId, context.self), "CmdConsumer")
+    context.spawn[Nothing](RegisterListener(buildingId, buildingManager = context.self), "RegisterListener")
+    context.spawn[Nothing](QueryConsumer(buildingId, buildingManager = context.self), "QueryConsumer")
+    context.spawn[Nothing](CmdConsumer(buildingId, buildingManager = context.self), "CmdConsumer")
 
     // διατηρεί έναν κατάλογο με τις ομάδες συσκευών
     def mainBehavior(): Behavior[Msg] = 
@@ -80,19 +77,19 @@ final class BuildingManager private (context: ActorContext[BuildingManager.Msg],
 
                 case QueryDevices(parsedQuery, replyTo) => 
 
-                    context.log.info("RECEIVED {}", parsedQuery)
-                    queryDevices(parsedQuery, replyTo)
+                    context.log.debug("RECEIVED {}", parsedQuery)
+                    queryDevices(parsedQuery, replyTo, timeout = 10.seconds)
                     Behaviors.same
 
                 case SendCommands(parsedCommands, replyTo) => 
 
-                    context.log.info("RECEIVED {}", parsedCommands)
-                    sendCommandsToGroups(parsedCommands, replyTo)
+                    context.log.debug("RECEIVED {}", parsedCommands)
+                    sendCommandsToGroups(parsedCommands, replyTo, timeout = 5.seconds)
                     Behaviors.same
             }
 
 
-    private def sendCommandsToGroups(parsedCmds: ParsedCommands, replyTo: ActorRef[StatusReply[String]]): Unit = {
+    private def sendCommandsToGroups(parsedCmds: ParsedCommands, replyTo: ActorRef[StatusReply[String]], timeout: FiniteDuration): Unit = {
         /**
          * οι πληροφορίες που φτάνουν σε αυτό το σημείο έχουν τη μορφή 
          * Map(
@@ -117,13 +114,13 @@ final class BuildingManager private (context: ActorContext[BuildingManager.Msg],
                 expectedReplies = parsedCmds.commands.size,
                 replyTo,
                 aggregateReplies = (replies => StatusReply.Success(replies.mkString("{",",\n","}"))),
-                timeout = 5.seconds
+                timeout
             )
 
         context.spawnAnonymous(aggregatorBehavior)  
     }
 
-    private def queryDevices(parsedQuery: ParsedQuery, replyTo: ActorRef[AggregatedResults]): Unit = {
+    private def queryDevices(parsedQuery: ParsedQuery, replyTo: ActorRef[AggregatedResults], timeout: FiniteDuration): Unit = {
          val aggregatorBehavior = 
             Aggregator[AggregatedData, AggregatedResults](
                 sendRequests = { receiver => 
@@ -148,7 +145,7 @@ final class BuildingManager private (context: ActorContext[BuildingManager.Msg],
 
                     AggregatedResults(resultsJson)
                 }, 
-                timeout = 10.seconds
+                timeout
             ) 
 
         context.spawnAnonymous(aggregatorBehavior)
