@@ -2,32 +2,31 @@
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import akka.kafka.CommitterSettings
-import akka.kafka.Subscriptions
 import akka.kafka.scaladsl.Committer
 import akka.kafka.scaladsl.Consumer
 import plh40_iot.util.KafkaConnector
 
-import scala.concurrent.Future
+import akka.kafka.Subscription
 
-object BuildingDataHandler {
+object BuildingStreamHandler  {
   
 
-    def apply(regionId: String, buildingId: String, consumerGroup: String): Behavior[Nothing] = 
+    def apply(clientId: String, consumerGroup: String, subscription: Subscription): Behavior[Nothing] = 
         Behaviors
             .setup[Nothing]{ context =>
 
                 implicit val system = context.system
                
                 val consumerSettings = 
-                    KafkaConnector.consumerSettings(s"$regionId-$buildingId-DATA-CONSUMER", consumerGroup)
+                    KafkaConnector.consumerSettings(clientId, consumerGroup)
                 
                 val committerSettings = CommitterSettings(system)
   
                 Consumer
-                    .committableSource(consumerSettings, Subscriptions.topics(s"Data-$buildingId"))
-                    .mapAsync(4) { msg =>
+                    .committableSource(consumerSettings, subscription)
+                    .map { msg => 
                         println("KAFKA CONSUMER RECEIVED VALUE: " + msg.record.value())
-                        Future.successful(msg.committableOffset)
+                        msg.committableOffset
                     }
                     .toMat(Committer.sink(committerSettings))(Consumer.DrainingControl.apply)
                     .run()

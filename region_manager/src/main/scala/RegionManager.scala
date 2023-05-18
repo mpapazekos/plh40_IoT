@@ -12,11 +12,13 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import scala.collection.immutable.HashMap
 import scala.concurrent.duration._
 
+import spray.json._
 
 final case class DeviceInfo(groupId: String, devId: String, devType: String, modulePath: String)    
 
 object RegionManager {
 
+    type BuildingToJsonMap = Map[String, String]
     type KafkaRecords = ProducerMessage.Envelope[String, String, NotUsed]
 
     // θα πρέπει να διατηρεί μια σύνδεση μέσω kafka απο την οποία θα λαμβάνει πληροφορίες για ενα κτήριο 
@@ -33,11 +35,47 @@ object RegionManager {
     sealed trait Msg
 
     final case class RegisterBuilding(buildingId: String, replyTo: ActorRef[StatusReply[String]]) extends Msg
-    final case class SendToBuilding(buildingMap: Map[String, String], topicPrefix: String, replyTo: ActorRef[StatusReply[KafkaRecords]]) extends Msg
+    final case class SendToBuilding(buildingMap: BuildingToJsonMap, topicPrefix: String, replyTo: ActorRef[StatusReply[KafkaRecords]]) extends Msg
    
     def apply(regionId: String, buildingIds: Iterable[String]): Behavior[Msg] = 
         Behaviors
             .setup(ctx => new RegionManager(ctx, regionId).init(buildingIds))
+
+
+    private def parseBuildingsQueryJson(msg: String): BuildingToJsonMap = {
+        
+        val buildings = 
+            msg.parseJson.asJsObject.getFields("buildings").head
+
+        val parsed = 
+            buildings
+                .asInstanceOf[JsArray]
+                .elements
+                .map { elem =>  
+                    val fields = elem.asJsObject.fields
+                    (fields("building").asInstanceOf[JsString].value , fields("groupList").toString())
+                }      
+                
+        parsed.toMap
+    }
+
+    private def parseBuildingsCmdJson(msg: String): BuildingToJsonMap = {
+        
+        val fields = 
+            msg.parseJson.asJsObject.fields
+
+        val parsed = 
+            fields("buildings") match {
+                case JsArray(elements) => 
+                    elements
+                        .map { elem =>  
+                            val fields = elem.asJsObject.fields
+                            (fields("building").asInstanceOf[JsString].value , fields("cmdList").toString())
+                        }  
+            }
+
+        parsed.toMap
+    }   
 }
 
 
@@ -49,14 +87,14 @@ final class RegionManager private (context: ActorContext[RegionManager.Msg], reg
 
     context.spawn[Nothing](
         Behaviors
-            .supervise[Nothing](QueryConsumer(regionId,s"$regionId-qry-group", context.self))
+            .supervise[Nothing](BuildingInfoConsumer(regionId, "Query", s"$regionId-qry-group", context.self, parseBuildingsQueryJson))
             .onFailure[Exception](SupervisorStrategy.restartWithBackoff(0.5.seconds, 20.seconds, 0.2)), 
             name = s"$regionId-query-actor"
         )
 
     context.spawn[Nothing](
                 Behaviors
-                    .supervise[Nothing](CmdConsumer(regionId, s"$regionId-cmd-group", context.self))
+                    .supervise[Nothing](BuildingInfoConsumer(regionId, "Command", s"$regionId-cmd-group", context.self, parseBuildingsCmdJson))
                     .onFailure[Exception](SupervisorStrategy.restartWithBackoff(0.5.seconds, 20.seconds, 0.2)),
                 name = s"$regionId-cmd-actor"
             )
@@ -70,7 +108,6 @@ final class RegionManager private (context: ActorContext[RegionManager.Msg], reg
         mainBehavior()
     }
 
-  
     private def mainBehavior(): Behavior[Msg] = 
         Behaviors
             .receiveMessagePartial {
@@ -105,7 +142,7 @@ final class RegionManager private (context: ActorContext[RegionManager.Msg], reg
             }
 
     private def spawnBuildingActor(buildingId: String): ActorRef[BuildingRep.Msg] = {
-        context.log.info("Spawning actor for building: {}", buildingId)
+        context.log.debug("Spawning actor for building: {}", buildingId)
         context.spawnAnonymous(
             Behaviors
                 .supervise(BuildingRep(buildingId, regionId))
