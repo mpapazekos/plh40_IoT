@@ -4,28 +4,14 @@ import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.config.ConfigFactory
 import plh40_iot.domain.DeviceTypes
 import plh40_iot.util.Utils
-import spray.json.DefaultJsonProtocol._
-import spray.json._
 
 import scala.concurrent.duration._
 import akka.actor.typed.Behavior
 
 object Main {
 
-    final case class NewDeviceInfo(
-        deviceType: String, 
-        deviceId: String,  
-        module: String, 
-        publishingTopic: String,
-        dataSendingPeriod: Double
-    )
-
-    final case class InputInfo(buildingId: String, devices: Array[NewDeviceInfo])
-
-    implicit val newDeviceFormat = jsonFormat5(NewDeviceInfo)
-    implicit val inputFormat = jsonFormat2(InputInfo) 
-
-    // ======================================================================================
+    import spray.json._
+    import InputJsonProtocol._
 
     def main(args: Array[String]): Unit = {
         
@@ -39,7 +25,7 @@ object Main {
                     println(parseError)
                     sys.exit(1) 
                 case Right(input) =>
-                    ActorSystem[Nothing](rootBehavior(input),s"${input.buildingId}-actor-system")
+                    ActorSystem[Nothing](rootBehavior(input), s"${input.buildingId}-device-system")
             }
     }
 
@@ -57,7 +43,7 @@ object Main {
                                     device, 
                                     input.buildingId, 
                                     d.module, 
-                                    modulePath = s"/${input.buildingId}/${d.module}/${d.publishingTopic}/${d.deviceId}", 
+                                    pubTopic = s"/${input.buildingId}/${d.module}/${d.publishingTopic}/${d.deviceId}", 
                                     d.dataSendingPeriod.seconds
                                 )
                             )               

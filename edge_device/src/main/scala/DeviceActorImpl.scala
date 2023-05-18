@@ -24,14 +24,15 @@ import plh40_iot.util.MqttConnector
 
 import scala.concurrent.duration._
 import plh40_iot.domain.RegisterInfo
+import akka.actor.typed.ActorRef
 
 
 final class SmartDeviceActor[A <: DeviceData, B <: DeviceCmd] (
     ctx: ActorContext[DeviceActor.Msg], 
     device: SmartDevice[A, B], 
-    modulePath: String,
+    pubTopic: String,
     buildingId: String
-) extends GenDeviceActor(ctx, device, modulePath, buildingId) {
+) extends GenDeviceActor(ctx, device, pubTopic, buildingId) {
 
    import DeviceActor._
 
@@ -40,17 +41,17 @@ final class SmartDeviceActor[A <: DeviceData, B <: DeviceCmd] (
             .receiveMessagePartial {
                 case Tick =>
                     //on tick generate new data
-                    val newState = device.generateData(state)
+                    val newData = device.generateData(state)
                     
                     // create new message
-                    publishData(newState)
+                    publishData(newData)
                     
                 case ExecuteCommand(cmd, replyTo) => 
                     
                     ctx.log.info(s"RECEIVED COMMAND: $cmd")      
-                    val newState = device.execute(cmd.asInstanceOf[B], state)  
+                    val newData = device.execute(cmd.asInstanceOf[B], state)  
                     replyTo ! StatusReply.Ack
-                    publishData(newState)
+                    publishData(newData)
 
                 case Emitted => 
                     ctx.log.debug("message passed downstream")
@@ -59,8 +60,7 @@ final class SmartDeviceActor[A <: DeviceData, B <: DeviceCmd] (
 
 }
 
-
-sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg], device: GenDevice[A], modulePath: String,  buildingId:  String){
+sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg], device: GenDevice[A], pubTopic: String, buildingId: String){
 
     import DeviceActor._
     import MqttConnector._
@@ -70,17 +70,26 @@ sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg]
 
     protected implicit val system = ctx.system
    
-    // publisher
-    protected val publisher = runPublisherStream()
+    /** Actor used to send mqtt messages for publishing to broker. */
+    protected val publisher: ActorRef[Event] = runPublisherStream(bufferSize = 30)
 
-    protected val registerStreamKillSwitch = runRegisterStream()
+    /** Killswitch in order to kill register stream once the device has successfully registered. */
+    protected val registerStreamKillSwitch: UniqueKillSwitch = runRegisterStream(askTimeout = 5.seconds)
 
+    /**
+      * Every time a Tick message is received a new message for registration is sent to mqtt.
+      * When a new RegisterMsg is received checks the registration status .
+      * If sucessfully registered changes behavior to running and begins to send device data,
+      * else continues attempts for registration.
+      * @param groupId Module group in which device belongs to 
+      * @param registerTopic Topic to send mqtt messages for registration.
+      */
     def registering(groupId: String, registerTopic: String): Behavior[Msg] = {
         Behaviors
             .receiveMessagePartial {
                 case Tick => 
                     val payload = 
-                        RegisterInfo(groupId, device.id, device.typeStr, modulePath).toJson.toString()
+                        RegisterInfo(groupId, device.id, device.typeStr, pubTopic).toJson.toString()
                       
                     val mqttMessage = 
                         MqttMessage(registerTopic, ByteString(payload))
@@ -107,28 +116,33 @@ sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg]
             }
     }
 
+    /**
+      * Every time a Tick message is received device data 
+      * is generated and published to the mqtt broker.
+      * @param state current device data state
+      */
     protected def running(state: A): Behavior[Msg] = 
         Behaviors
             .receiveMessagePartial {
                 case Tick =>
                     //on tick generate new data
-                    val newState = device.generateData(state)
+                    val newData = device.generateData(state)
                     
                     // create new message
-                    publishData(newState)
+                    publishData(newData)
 
                 case Emitted => 
                     ctx.log.debug("message passed downstream")
                     Behaviors.same
             }
 
+    /** Converts given device data to json string and published to mqtt broker. */
     protected def publishData(data: A): Behavior[Msg] = 
         device.toJsonString(data) match {
             case Right(payload) => 
                 val mqttMessage = 
-                    MqttMessage(modulePath, ByteString(payload))
-                        .withQos(MqttQoS.AtLeastOnce)
-                        .withRetained(true)
+                    MqttMessage(pubTopic, ByteString(payload)).withRetained(true)
+
                 //publish to mqtt
                 ctx.log.info("PUBLISHING {}", payload)
                 publisher ! Publish(mqttMessage)
@@ -138,14 +152,24 @@ sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg]
                 Behaviors.same 
         }
     
-    protected def runRegisterStream(): UniqueKillSwitch = {
+    /**
+      * Runs a streams for device registration. 
+      * Subscribes to mqtt topic for registration results. 
+      * When an answer arrives sends result message to this actor, 
+      * using askWithStatus pattern.  
+      * @param askTimeout how long to wait for device actor reply 
+      * @return killswitch for controling specific stream
+      */
+    protected def runRegisterStream(implicit askTimeout: Timeout): UniqueKillSwitch = {
 
         implicit val ec = system.classicSystem.dispatcher
-        implicit val timeout: Timeout = 5.seconds
     
+        val subscriptions = 
+            MqttSubscriptions(s"/$buildingId/register/${device.id}", MqttQoS.AtLeastOnce)
+
         //subsciber
         val subSource = 
-            MqttConnector.subscriberSource(s"REG_${device.id}", MqttSubscriptions(s"/$buildingId/register/${device.id}", MqttQoS.AtLeastOnce))
+            MqttConnector.subscriberSource(s"REG_${device.id}", subscriptions)
 
         val actorFlow =
             ActorFlow.askWithStatus[String, RegisterMsg, Done](ctx.self)(RegisterMsg.apply)
@@ -160,7 +184,14 @@ sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg]
         killSwitch
     }
 
-    protected def runPublisherStream() = {
+    /**
+      * Creates an actorSource with backpressure with given buffersize.
+      * Connects to connects to mqtt broker using the device id to construct the client id.
+      * Materializes the created stream.
+      * @param bufferSize message limit until backpressure is applied
+      * @return actor ref to send mqtt events to the stream
+      */
+    protected def runPublisherStream(bufferSize: Int): ActorRef[Event] = {
 
         val actorSource =
             ActorSource
@@ -172,7 +203,7 @@ sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg]
                     completionMatcher = { case ReachedEnd => CompletionStrategy.draining},
                     failureMatcher = { case FailureOccured(ex) => ex }
                 )
-                .buffer(30, OverflowStrategy.backpressure)
+                .buffer(bufferSize, OverflowStrategy.backpressure)
                 .withAttributes(ActorAttributes.supervisionStrategy(Supervision.restartingDecider))
 
   

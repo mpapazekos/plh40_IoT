@@ -12,6 +12,10 @@ import akka.stream.typed.scaladsl.ActorFlow
 import plh40_iot.domain.DeviceTypes
 import plh40_iot.util.Utils
 import akka.Done
+import akka.stream.scaladsl.Flow
+import akka.NotUsed
+import akka.stream.scaladsl.Source
+import scala.concurrent.Future
 
 object CmdSubscriber {
   
@@ -23,41 +27,40 @@ object CmdSubscriber {
         modulePath: String,
         deviceActor: ActorRef[DeviceActor.Msg], 
         jsonToCmd: String => Either[String, DeviceCmd]
-    ): Behavior[Nothing] = 
+    )(implicit askTimeout: Timeout = 5.seconds): Behavior[Nothing] = 
         Behaviors
             .setup[Nothing]{ context => 
 
                 implicit val system = context.system
                 implicit val ec = system.classicSystem.dispatcher
-                implicit val timeout: Timeout = 5.seconds
+                
+                val subSource: Source[String, Future[Done]] = 
+                    MqttConnector
+                        .subscriberSource(s"SUB_$deviceId", MqttSubscriptions(s"$modulePath/cmd" -> MqttQoS.AtLeastOnce))
 
-                //subsciber
-                val subSource = 
-                    MqttConnector.subscriberSource(s"SUB_$deviceId", MqttSubscriptions(s"$modulePath/cmd" -> MqttQoS.AtLeastOnce))
-
-                val actorFlow =
-                    ActorFlow.askWithStatus[DeviceCmd, ExecuteCommand, Done](deviceActor)(ExecuteCommand.apply)
-
+                val actorFlow: Flow[DeviceCmd, Done, NotUsed] =
+                    ActorFlow
+                        .askWithStatus[DeviceCmd, ExecuteCommand, Done](deviceActor)(ExecuteCommand.apply)
 
                 /*
                                 +---------------------------------------------------+
                                 |   (deviceActor)                                   |
                                 |    ^        |                                     |
                                 |    |        |                                     |
-                                |   Cmd   CmdReceived                               |
+                                |   Cmd      Ack                                    |
                                 |    |        |                                     |
                                 |  +-|--------V--+               +---------------+  |
                                 |  |             |               |               |  |
-                MqttMessage ~~> | actorFlow  ~~> CmdReceived ~~> Sink.ignore  |  |
+                   MqttMessage ~~> | actorFlow  ~~> CmdReceived ~~> Sink.ignore  |  |
                                 |  |             |               |               |  |
                                 |  +-------------+               +---------------+  |
                                 +---------------------------------------------------+
                 */  
                 subSource
-                .map(jsonToCmd)
-                .via(Utils.errorHandleFlow())
-                .via(actorFlow)
-                .run()
+                    .map(jsonToCmd)
+                    .via(Utils.errorHandleFlow())
+                    .via(actorFlow)
+                    .run()
 
                 Behaviors.empty
             }
