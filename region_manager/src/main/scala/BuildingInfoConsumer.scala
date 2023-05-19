@@ -44,7 +44,7 @@ object BuildingInfoConsumer {
                 KafkaConnector
                     .committableSourceWithOffsetContext(consumerSettings, Subscriptions.topics(s"$topicPrefix-$regionId"), parseBuildingsJson)
             
-            val actorFlow =
+            val flowThroughActor =
                 ActorFlow
                     .askWithStatusAndContext[BuildingToJsonMap, SendToBuilding, KafkaRecords, ConsumerMessage.CommittableOffset](regionManager)(
                         (msg, ackReceiver) => SendToBuilding(msg, topicPrefix, ackReceiver)
@@ -58,7 +58,7 @@ object BuildingInfoConsumer {
             
 
             consumerSource
-                .via(actorFlow)
+                .via(flowThroughActor)
                 .toMat(producerSink)(Consumer.DrainingControl.apply)
                 .run()
 
