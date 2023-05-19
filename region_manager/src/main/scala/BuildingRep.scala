@@ -6,6 +6,8 @@ import akka.kafka.Subscriptions
 import akka.kafka.scaladsl.Committer
 import akka.kafka.scaladsl.Consumer
 import plh40_iot.util.KafkaConnector
+import akka.actor.typed.PreRestart
+import akka.actor.typed.PostStop
 
 object BuildingRep {
     
@@ -20,6 +22,7 @@ object BuildingRep {
             .setup{ context => 
 
                 implicit val system = context.system
+                implicit val ec = system.classicSystem.dispatcher
                
                 val consumerSettings = 
                     KafkaConnector.consumerSettings(
@@ -29,15 +32,21 @@ object BuildingRep {
                 
                 val committerSettings = CommitterSettings(system)
   
-                Consumer
-                    .committableSource(consumerSettings, Subscriptions.topics(s"Data-$buildingId", s"Query-results-$buildingId"))
-                    .map { msg => 
-                        println("KAFKA CONSUMER RECEIVED VALUE: " + msg.record.value())
-                        msg.committableOffset
-                    }
-                    .toMat(Committer.sink(committerSettings))(Consumer.DrainingControl.apply)
-                    .run()
+                val drainingControl =
+                    Consumer
+                        .committableSource(consumerSettings, Subscriptions.topics(s"Data-$buildingId", s"Query-results-$buildingId"))
+                        .map { msg => 
+                            println("KAFKA CONSUMER RECEIVED VALUE: " + msg.record.value())
+                            msg.committableOffset
+                        }
+                        .toMat(Committer.sink(committerSettings))(Consumer.DrainingControl.apply)
+                        .run()
 
-                Behaviors.empty
+                
+                Behaviors.receiveSignal {
+                    case (_, signal) if signal == PreRestart || signal == PostStop =>
+                        drainingControl.drainAndShutdown()
+                        Behaviors.same
+                }
             } 
 }

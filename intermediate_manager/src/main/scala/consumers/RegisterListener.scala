@@ -16,12 +16,17 @@ import scala.concurrent.duration._
 
 
 import plh40_iot.domain.RegisterInfo
+import akka.actor.typed.PreRestart
+import akka.actor.typed.PostStop
+import akka.stream.KillSwitches
+import akka.stream.scaladsl.Keep
 
 object RegisterListener {
   
+    sealed trait Msg
+
     import BuildingManager.RegisterDevice
     import DeviceGroup.{DeviceCreated, AlreadyRunning, CouldNotCreateDevice, Response}
-
 
     // Ξεκινάει μια ροή δεδομένων στην οποία τα δεδομένα εισέρχονται απο μια πηγή mqtt 
     // επεξεργάζονται έπειτα απο τον device manager, με τα αποτελέσματα να προωθούνται σε μια δεξαμενή mqtt 
@@ -31,9 +36,9 @@ object RegisterListener {
     // υπεύθυνος για τα δεδομένα αυτά και δίνεταi ως απάντηση ένα μήνυμα επιτυχίας. 
     // Σε περίπτωση που δεν είναι δυνατή η επεξεργασία των δεδομένων στέλνεται αντίστοιχο μήνυμα αποτυχίας
     // πίσω στη συσκευή.
-    def apply(buildingId: String,  buildingManager: ActorRef[RegisterDevice]): Behavior[Nothing] = 
+    def apply(buildingId: String,  buildingManager: ActorRef[RegisterDevice]): Behavior[Msg] = 
         Behaviors
-            .setup[Nothing] { context => 
+            .setup{ context => 
 
                 implicit val system = context.system
                 implicit val ec = system.classicSystem.dispatcher
@@ -68,14 +73,20 @@ object RegisterListener {
                 // having a string payload try to parse json in order to obtain register info
                 // if successfull send message to manager for device creation
                 // and update edge device by publishing result to mqtt broker
-                subscriberSource 
-                    .mapAsync(4)(json => Utils.parseMessage(json, parseRegisterInfo))
-                    .via(Utils.errorHandleFlow())
-                    .via(flowThroughActor)
-                    .to(sinkToBroker)
-                    .run()
+                val killSwitch =
+                    subscriberSource 
+                        .mapAsync(4)(json => Utils.parseMessage(json, parseRegisterInfo))
+                        .via(Utils.errorHandleFlow())
+                        .via(flowThroughActor)
+                        .viaMat(KillSwitches.single)(Keep.right)
+                        .toMat(sinkToBroker)(Keep.left)
+                        .run()
 
-                Behaviors.empty
+                Behaviors.receiveSignal {
+                    case (_, signal) if signal == PreRestart || signal == PostStop =>
+                        killSwitch.shutdown()
+                        Behaviors.same
+                }
             }
 
     private def parseRegisterInfo(json: String): RegisterInfo = {

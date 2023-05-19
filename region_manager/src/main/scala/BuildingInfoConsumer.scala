@@ -12,10 +12,14 @@ import akka.util.Timeout
 import plh40_iot.util.KafkaConnector
 
 import scala.concurrent.duration.DurationInt
+import akka.actor.typed.PreRestart
+import akka.actor.typed.PostStop
 
 
 object BuildingInfoConsumer {
   
+    sealed trait Msg
+
     import RegionManager.{SendToBuilding, KafkaRecords, BuildingToJsonMap}
     /** 
       * 1. H ροή λαμβάνει ένα αντικείμενο json με ερωτήματα για το κάθε κτήριο 
@@ -29,8 +33,8 @@ object BuildingInfoConsumer {
         consumerGroup: String, 
         regionManager: ActorRef[RegionManager.Msg],
         parseBuildingsJson: String => BuildingToJsonMap
-    )(implicit askTimeout: Timeout = 10.seconds): Behavior[Nothing] = 
-        Behaviors.setup[Nothing] { context => 
+    )(implicit askTimeout: Timeout = 10.seconds): Behavior[Msg] = 
+        Behaviors.setup { context => 
 
             implicit val system = context.system
             implicit val ec = system.classicSystem.dispatcher 
@@ -56,13 +60,17 @@ object BuildingInfoConsumer {
             val producerSink = 
                 Producer.committableSinkWithOffsetContext(producerSettings, committerSettings)
             
+            val drainingControl =
+                consumerSource
+                    .via(flowThroughActor)
+                    .toMat(producerSink)(Consumer.DrainingControl.apply)
+                    .run()
 
-            consumerSource
-                .via(flowThroughActor)
-                .toMat(producerSink)(Consumer.DrainingControl.apply)
-                .run()
-
-            Behaviors.empty
+            Behaviors.receiveSignal {
+                    case (_, signal) if signal == PreRestart || signal == PostStop =>
+                        drainingControl.drainAndShutdown()
+                        Behaviors.same
+                }
         }
  
 }

@@ -14,8 +14,6 @@ import scala.concurrent.duration._
 
 import spray.json._
 
-final case class DeviceInfo(groupId: String, devId: String, devType: String, modulePath: String)    
-
 object RegionManager {
 
     type BuildingToJsonMap = Map[String, String]
@@ -85,19 +83,19 @@ final class RegionManager private (context: ActorContext[RegionManager.Msg], reg
 
     private var buildingIdToActor: HashMap[String, ActorRef[BuildingRep.Msg]] = HashMap.empty
 
-    context.spawn[Nothing](
+    context.spawn(
         Behaviors
-            .supervise[Nothing](BuildingInfoConsumer(regionId, "Query", s"$regionId-qry-group", context.self, parseBuildingsQueryJson))
+            .supervise(BuildingInfoConsumer(regionId, "Query", s"$regionId-qry-group", context.self, parseBuildingsQueryJson))
             .onFailure[Exception](SupervisorStrategy.restartWithBackoff(0.5.seconds, 20.seconds, 0.2)), 
             name = s"$regionId-query-actor"
         )
 
-    context.spawn[Nothing](
-                Behaviors
-                    .supervise[Nothing](BuildingInfoConsumer(regionId, "Command", s"$regionId-cmd-group", context.self, parseBuildingsCmdJson))
-                    .onFailure[Exception](SupervisorStrategy.restartWithBackoff(0.5.seconds, 20.seconds, 0.2)),
-                name = s"$regionId-cmd-actor"
-            )
+    context.spawn(
+            Behaviors
+                .supervise(BuildingInfoConsumer(regionId, "Command", s"$regionId-cmd-group", context.self, parseBuildingsCmdJson))
+                .onFailure[Exception](SupervisorStrategy.restartWithBackoff(0.5.seconds, 20.seconds, 0.2)),
+            name = s"$regionId-cmd-actor"
+        )
 
     def init(buildingIds: Iterable[String]): Behavior[Msg] = {
         val buildings =

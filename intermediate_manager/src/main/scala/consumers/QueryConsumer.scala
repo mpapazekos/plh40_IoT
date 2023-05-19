@@ -16,6 +16,8 @@ import plh40_iot.util.KafkaConnector
 import spray.json._
 
 import scala.concurrent.duration.DurationInt
+import akka.actor.typed.PreRestart
+import akka.actor.typed.PostStop
 
     /**
      * { "queryId": "query1", "groups": [ { "group": "test_group", "devices": ["error_id","fc5d8e11-f44e-400f-ab65-d85c2fd958c1","6874cd0f-a7e4-4d2f-85e6-dc1ddd37a75b"]}]}
@@ -28,6 +30,8 @@ import scala.concurrent.duration.DurationInt
 // με το που εκτελεστεί ένα ερώτημα επιτυχως τα αποτελέσματα προωθούνται στον kafka broker πάλι
 object QueryConsumer {
     
+    sealed trait Msg
+
     import BuildingManager.{QueryDevices, AggregatedResults}
  
     /**
@@ -45,9 +49,9 @@ object QueryConsumer {
       * The list of objects is sent in a message and the result is awaited.
       * @param buildingId: Used for connecting to a specific kafka topic
       */
-    def apply(buildingId: String, buildingManager: ActorRef[BuildingManager.Msg]): Behavior[Nothing] =
+    def apply(buildingId: String, buildingManager: ActorRef[BuildingManager.Msg]): Behavior[Msg] =
         Behaviors
-            .setup[Nothing]{ context =>
+            .setup{ context =>
 
                 implicit val system = context.system
                 implicit val ec = system.classicSystem.dispatcher
@@ -65,19 +69,24 @@ object QueryConsumer {
                     ActorFlow
                         .askWithContext[ParsedQuery, QueryDevices, AggregatedResults, CommittableOffset](buildingManager)(QueryDevices.apply)
         
-                KafkaConnector
-                    .committableSourceWithOffsetContext(consumerSettings, Subscriptions.topics(s"Query-$buildingId"), parseGroups)
-                    .via(buildingManagerFlow)
-                    .map { aggResults =>
+                val drainingControl =
+                    KafkaConnector
+                        .committableSourceWithOffsetContext(consumerSettings, Subscriptions.topics(s"Query-$buildingId"), parseGroups)
+                        .via(buildingManagerFlow)
+                        .map { aggResults =>
 
-                        println(s"\nAGGREGATED: ${aggResults.resultsJson}")
-                        
-                        ProducerMessage.single(new ProducerRecord[String, String](s"Query-results-$buildingId", aggResults.resultsJson))
-                    }
-                    .toMat(Producer.committableSinkWithOffsetContext(producerSettings, committerSettings))(Consumer.DrainingControl.apply)
-                    .run()
+                            println(s"\nAGGREGATED: ${aggResults.resultsJson}")
+                            
+                            ProducerMessage.single(new ProducerRecord[String, String](s"Query-results-$buildingId", aggResults.resultsJson))
+                        }
+                        .toMat(Producer.committableSinkWithOffsetContext(producerSettings, committerSettings))(Consumer.DrainingControl.apply)
+                        .run()
 
-                Behaviors.empty
+                Behaviors.receiveSignal {
+                    case (_, signal) if signal == PreRestart || signal == PostStop =>
+                        drainingControl.drainAndShutdown()
+                        Behaviors.same
+                }
             }
 
 

@@ -48,9 +48,9 @@ final class BuildingManager private (context: ActorContext[BuildingManager.Msg],
 
     private var groupToActor: HashMap[String, ActorRef[DeviceGroup.Msg]] = HashMap.empty
 
-    context.spawn[Nothing](RegisterListener(buildingId, buildingManager = context.self), "RegisterListener")
-    context.spawn[Nothing](QueryConsumer(buildingId, buildingManager = context.self), "QueryConsumer")
-    context.spawn[Nothing](CmdConsumer(buildingId, buildingManager = context.self), "CmdConsumer")
+    context.spawn(RegisterListener(buildingId, buildingManager = context.self), "RegisterListener")
+    context.spawn(QueryConsumer(buildingId, buildingManager = context.self), "QueryConsumer")
+    context.spawn(CmdConsumer(buildingId, buildingManager = context.self), "CmdConsumer")
 
     // διατηρεί έναν κατάλογο με τις ομάδες συσκευών
     def mainBehavior(): Behavior[Msg] = 

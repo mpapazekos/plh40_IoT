@@ -14,10 +14,14 @@ import plh40_iot.util.KafkaConnector
 import spray.json._
 
 import scala.concurrent.duration.DurationInt
+import akka.actor.typed.PreRestart
+import akka.actor.typed.PostStop
 
 //Test command - topic: Command-{buildingId} 
 //{"commands":[{"groupId":"test_group1","devices":[]},{"groupId":"factory","devices":[{"deviceId":"tb1","command":{"name":"set","value":38.4}}]},{"groupId":"room","devices":[{"deviceId":"bb1","command":{"name":"change-status","value":"charging"}}]}]}
 object CmdConsumer {
+    
+    sealed trait Msg
     
     import BuildingManager.SendCommands
  
@@ -35,9 +39,9 @@ object CmdConsumer {
       * The list of objects is sent in a message and the result is awaited.
       * @param buildingId: Used for connecting to a specific kafka topic
       */
-    def apply(buildingId: String, buildingManager: ActorRef[BuildingManager.Msg]): Behavior[Nothing] =
+    def apply(buildingId: String, buildingManager: ActorRef[BuildingManager.Msg]): Behavior[Msg] =
         Behaviors
-            .setup[Nothing]{ context =>
+            .setup{ context =>
 
                 implicit val system = context.system
                 implicit val ec = system.classicSystem.dispatcher
@@ -52,14 +56,19 @@ object CmdConsumer {
                     ActorFlow
                         .askWithStatusAndContext[ParsedCommands, SendCommands, String, CommittableOffset](buildingManager)(SendCommands.apply)
         
-                KafkaConnector
-                    .committableSourceWithOffsetContext(consumerSettings, Subscriptions.topics(s"Command-$buildingId"), parseCommands)
-                    .via(buildingManagerFlow)
-                    .map(result => print(result))
-                    .toMat(Committer.sinkWithOffsetContext(committerSettings))(Consumer.DrainingControl.apply)
-                    .run()
+                val drainingControl =
+                    KafkaConnector
+                        .committableSourceWithOffsetContext(consumerSettings, Subscriptions.topics(s"Command-$buildingId"), parseCommands)
+                        .via(buildingManagerFlow)
+                        .map(result => print(result))
+                        .toMat(Committer.sinkWithOffsetContext(committerSettings))(Consumer.DrainingControl.apply)
+                        .run()
 
-                Behaviors.empty
+                Behaviors.receiveSignal {
+                    case (_, signal) if signal == PreRestart || signal == PostStop =>
+                        drainingControl.drainAndShutdown()
+                        Behaviors.same
+                }
             }
 
     private def parseCommands(json: String): ParsedCommands = {
