@@ -36,11 +36,7 @@ object DeviceRep {
     ): Behavior[Msg] = 
         Behaviors
             .setup { context =>
-                // subscribe στα /device/deviceid: /data και /cmd/ack ωστε να ενημερώνεται 
-                // για τα καινούργια δεδομένα και την αναγνώριση εκτέλεσης μιας εντολής αντίστοιχα 
-    
-                // publish στο /device/deviceid/cmd για να στέλνει εντολές απο τα παραπάνω επίπεδα
-
+           
                 context.spawn[Nothing](
                     DeviceDataStreamer(device, modulePath, s"Data-$buildingId", context.self), 
                     name = s"SUB_${device.id}"

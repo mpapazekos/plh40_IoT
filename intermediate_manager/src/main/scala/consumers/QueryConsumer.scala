@@ -49,37 +49,39 @@ object QueryConsumer {
       * The list of objects is sent in a message and the result is awaited.
       * @param buildingId: Used for connecting to a specific kafka topic
       */
-    def apply(buildingId: String, buildingManager: ActorRef[BuildingManager.Msg]): Behavior[Msg] =
+    def apply(buildingId: String, buildingManager: ActorRef[BuildingManager.Msg])(implicit askTimeout: Timeout = 20.seconds): Behavior[Msg] =
         Behaviors
             .setup{ context =>
 
                 implicit val system = context.system
                 implicit val ec = system.classicSystem.dispatcher
-                implicit val timeout: Timeout = 20.seconds
                 
                 val consumerSettings = 
                     KafkaConnector.consumerSettings(s"Query-Consumer-$buildingId",s"$buildingId-consumer")
+
+                val kafkaSource = 
+                    KafkaConnector
+                        .committableSourceWithOffsetContext(
+                            consumerSettings, Subscriptions.topics(s"Query-$buildingId"), parseGroups
+                        )
+
+                val flowThroughBuildingManager = 
+                    ActorFlow
+                        .askWithContext[ParsedQuery, QueryDevices, AggregatedResults, CommittableOffset](buildingManager)(QueryDevices.apply)
 
                 val producerSettings = 
                     KafkaConnector.producerSettings(s"Query-Producer-$buildingId")
 
                 val committerSettings = CommitterSettings(context.system)
 
-                val buildingManagerFlow = 
-                    ActorFlow
-                        .askWithContext[ParsedQuery, QueryDevices, AggregatedResults, CommittableOffset](buildingManager)(QueryDevices.apply)
-        
-                val drainingControl =
-                    KafkaConnector
-                        .committableSourceWithOffsetContext(consumerSettings, Subscriptions.topics(s"Query-$buildingId"), parseGroups)
-                        .via(buildingManagerFlow)
-                        .map { aggResults =>
+                val kafkaSink = 
+                    Producer.committableSinkWithOffsetContext(producerSettings, committerSettings)
 
-                            println(s"\nAGGREGATED: ${aggResults.resultsJson}")
-                            
-                            ProducerMessage.single(new ProducerRecord[String, String](s"Query-results-$buildingId", aggResults.resultsJson))
-                        }
-                        .toMat(Producer.committableSinkWithOffsetContext(producerSettings, committerSettings))(Consumer.DrainingControl.apply)
+                val drainingControl =
+                    kafkaSource
+                        .via(flowThroughBuildingManager)
+                        .map(aggResults => ProducerMessage.single(new ProducerRecord[String, String](s"Query-results-$buildingId", aggResults.resultsJson)))
+                        .toMat(kafkaSink)(Consumer.DrainingControl.apply)
                         .run()
 
                 Behaviors.receiveSignal {

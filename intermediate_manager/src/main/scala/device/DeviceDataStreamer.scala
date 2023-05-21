@@ -4,7 +4,6 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.alpakka.mqtt.MqttQoS
 import akka.stream.alpakka.mqtt.MqttSubscriptions
-import akka.stream.scaladsl.Keep
 import akka.stream.typed.scaladsl.ActorFlow
 import akka.util.Timeout
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -25,13 +24,17 @@ object DeviceDataStreamer {
     // με το που τα λάβει επιτυχώς αναβαθμίζει την κατάσταση του κυρίως actor
     // τα προωθεί στο kafka topic για το συγκεκριμένο κτήριο
 
-    def apply[A <: DeviceData](device: GenDevice[A], mqttSubTopic: String, kafkaPubTopic: String, askRef: ActorRef[NewData]): Behavior[Nothing] = 
+    def apply[A <: DeviceData](
+        device: GenDevice[A], 
+        mqttSubTopic: String, 
+        kafkaPubTopic: String, 
+        deviceRep: ActorRef[NewData]
+    )(implicit askTimeout: Timeout = 5.seconds): Behavior[Nothing] = 
         Behaviors
             .setup[Nothing] { context => 
 
                 implicit val system = context.system
                 implicit val ec = system.classicSystem.dispatcher
-                implicit val timeout: Timeout = 5.seconds
 
                 // mqtt subscriber 
                 val subscriptions = 
@@ -40,13 +43,12 @@ object DeviceDataStreamer {
                 val subscriberSource = 
                     MqttConnector.subscriberSource(s"IoT_SUB_${device.id}", subscriptions)
 
-
                 // Οταν λαμβάνεται μια καινούργια μέτρηση απο εναν mqtt broker 
                 // ενημερώνεται αρχικά ο actor υπέθυνος για την συσκευή 
                 // και ύστερα προωθείται σε έναν kafka broker
-                val flowThroughActor = 
+                val flowThroughDeviceRep = 
                     ActorFlow
-                        .ask[DeviceData, NewData, DataReceived](askRef)(NewData.apply)
+                        .ask[DeviceData, NewData, DataReceived](deviceRep)(NewData.apply)
                         .withAttributes(ActorAttributes.supervisionStrategy(Supervision.restartingDecider))
 
                 val producerSettings = 
@@ -58,10 +60,11 @@ object DeviceDataStreamer {
                 subscriberSource
                     .map(device.fromJsonString)
                     .via(Utils.errorHandleFlow())
-                    .viaMat(flowThroughActor)(Keep.left)
+                    .via(flowThroughDeviceRep)
                     .map(received => device.toJsonString(received.data.asInstanceOf[A]))
                     .collect{ case Right(json) => new ProducerRecord[String, String](kafkaPubTopic, json) }
-                    .runWith(kafkaRestartSink)
+                    .to(kafkaRestartSink)
+                    .run()
                 
                 Behaviors.empty
             }

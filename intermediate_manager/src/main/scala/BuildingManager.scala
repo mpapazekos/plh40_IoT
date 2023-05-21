@@ -16,19 +16,8 @@ object BuildingManager {
 
     type GroupToJsonInfo = Map[String, Iterable[String]]
 
-    // Δημιουργεί και διαχειρίζεται ομάδες συσκευών 
-    // - device group 
-    // - device 
-
-    // Θα ενημερώνεται για την εμφάνιση νέας συσκευής μέσω μηνύματος
     sealed trait Msg
 
-    // για την κατασκευή μιας συσκευής είναι απαραίτητα:
-    //  - ομάδα
-    //  - το topic για την επικοινωνία (μέσω αυτόυ θα κατασκευάζονται τα αντίστοιχα path για pub/sub)
-    //  - αναγνωριστικό συσκευής 
-    //  - τύπος για να κατασκευαστεί το κατάλληλο αντικείμενο(θερμοστάτης, μπαταρία, κλπ)
-    // η ομάδα και οι πληροφορίες για τη συσκευή δίνονται ξεχωριστά ωστε να στέλνονται μετά στον group actor για τη δημιουργία
     final case class RegisterDevice(info: RegisterInfo, replyTo: ActorRef[DeviceGroup.Response]) extends Msg
 
     final case class QueryDevices(parsedQuery: ParsedQuery, replyTo: ActorRef[AggregatedResults]) extends Msg
@@ -84,7 +73,7 @@ final class BuildingManager private (context: ActorContext[BuildingManager.Msg],
                 case SendCommands(parsedCommands, replyTo) => 
 
                     context.log.debug("RECEIVED {}", parsedCommands)
-                    sendCommandsToGroups(parsedCommands, replyTo, timeout = 5.seconds)
+                    sendCommandsToGroups(parsedCommands, replyTo, timeout = 10.seconds)
                     Behaviors.same
             }
 

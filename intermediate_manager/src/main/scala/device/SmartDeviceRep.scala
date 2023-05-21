@@ -44,7 +44,7 @@ final class SmartDeviceRep[A <: DeviceData, B <: DeviceCmd](
                                 }   
                         }
 
-                    context.log.info(s"Sending data to: $replyTo")
+                    context.log.debug(s"Sending data to: $replyTo")
                     replyTo ! DataResponse(device.id, response)
                     Behaviors.same 
 
