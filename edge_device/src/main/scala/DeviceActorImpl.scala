@@ -1,3 +1,4 @@
+package edge_device
 
 import akka.Done
 import akka.actor.typed.Behavior
@@ -103,6 +104,7 @@ sealed class GenDeviceActor[A <: DeviceData] (ctx: ActorContext[DeviceActor.Msg]
                             ctx.log.info("REGISTERED {}", device.id)
                             replyTo ! StatusReply.Ack
                             registerStreamKillSwitch.shutdown()
+                            publishData(device.initState)
                             running(device.initState)
                         case msg: String => 
                             ctx.log.warn(msg)

@@ -1,3 +1,4 @@
+package edge_device
 
 import akka.Done
 import akka.actor.typed.ActorRef

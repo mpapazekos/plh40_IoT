@@ -1,3 +1,4 @@
+package edge_device
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -22,6 +23,16 @@ object CmdSubscriber {
     import DeviceTypes.DeviceCmd
     import DeviceActor.ExecuteCommand
 
+    /**
+      * Creates a subscriber stream for a smart device actor in order to receive commands.
+      * Once an incoming command is parsed succefully, it is sent to given device actor
+      * through the stream.
+      * @param deviceId Device id 
+      * @param modulePath Publication topic prefix for creating a subscription
+      * @param deviceActor reference to device actor
+      * @param jsonToCmd  fucntion to parse incoming command from json format
+      * @param askTimeout timeout for sending command to actor 
+      */
     def apply(
         deviceId: String, 
         modulePath: String,
