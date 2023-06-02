@@ -1,6 +1,8 @@
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
+import akka.actor.typed.PostStop
+import akka.actor.typed.PreRestart
 import akka.actor.typed.scaladsl.Behaviors
 import akka.kafka.CommitterSettings
 import akka.kafka.ConsumerMessage.CommittableOffset
@@ -14,11 +16,7 @@ import plh40_iot.util.KafkaConnector
 import spray.json._
 
 import scala.concurrent.duration.DurationInt
-import akka.actor.typed.PreRestart
-import akka.actor.typed.PostStop
 
-//Test command - topic: Command-{buildingId} 
-//{"commands":[{"groupId":"test_group1","devices":[]},{"groupId":"factory","devices":[{"deviceId":"tb1","command":{"name":"set","value":38.4}}]},{"groupId":"room","devices":[{"deviceId":"bb1","command":{"name":"change-status","value":"charging"}}]}]}
 object CmdConsumer {
     
     sealed trait Msg
@@ -60,7 +58,7 @@ object CmdConsumer {
                     KafkaConnector
                         .committableSourceWithOffsetContext(consumerSettings, Subscriptions.topics(s"Command-$buildingId"), parseCommands)
                         .via(buildingManagerFlow)
-                        .map(result => print(result))
+                        .map(result => println(result))
                         .toMat(Committer.sinkWithOffsetContext(committerSettings))(Consumer.DrainingControl.apply)
                         .run()
 

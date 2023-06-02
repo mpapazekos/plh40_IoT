@@ -1,6 +1,8 @@
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
+import akka.actor.typed.PostStop
+import akka.actor.typed.PreRestart
 import akka.actor.typed.scaladsl.Behaviors
 import akka.kafka.CommitterSettings
 import akka.kafka.ConsumerMessage.CommittableOffset
@@ -16,18 +18,8 @@ import plh40_iot.util.KafkaConnector
 import spray.json._
 
 import scala.concurrent.duration.DurationInt
-import akka.actor.typed.PreRestart
-import akka.actor.typed.PostStop
 
-    /**
-     * { "queryId": "query1", "groups": [ { "group": "test_group", "devices": ["error_id","fc5d8e11-f44e-400f-ab65-d85c2fd958c1","6874cd0f-a7e4-4d2f-85e6-dc1ddd37a75b"]}]}
-     */
-
-
-// είναι υπεύθυνος για την απόκτηση queries για απο έναν kafka broker 
-// κάθε query αφορά την απόκτηση των τελευταίων δεδομένων μιας ή περισσότερων συσκευών 
-// θα πρέπει να περιέχει επαρκείς πληροφορίες ώστε να μπορεί να βρεθεί και να ερωτηθεί ο αντίστοιχος actor με τα δεδομένα
-// με το που εκτελεστεί ένα ερώτημα επιτυχως τα αποτελέσματα προωθούνται στον kafka broker πάλι
+ 
 object QueryConsumer {
     
     sealed trait Msg

@@ -16,11 +16,18 @@ final class GenDeviceRep[A <: DeviceData](
     implicit val system = context.system
     implicit val ec = system.classicSystem.dispatcher
 
+    /**
+      * General device rep behavior.
+      * When new data is received updates current state and responds to sender.
+      * When current state is requested it is converted to json format and passed through response message.
+      * When a message for publishing command arrives, a response with error message is replied back.
+      * @param data latest data received from device
+      */
     def running(data: Option[A]): Behavior[Msg] = 
         Behaviors
             .receiveMessagePartial {
                 case NewData(value, replyTo) =>
-                    context.log.info(s"Received new data from MQTT: $value")
+                    context.log.info(s"Received from MQTT: $value")
                     replyTo ! DataReceived(device.id, value)
                     running(Some(value.asInstanceOf[A]))
 

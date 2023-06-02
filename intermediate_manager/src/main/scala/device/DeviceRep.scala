@@ -7,69 +7,71 @@ import plh40_iot.domain.DeviceTypes._
 import scala.concurrent.duration._
 import akka.actor.typed.SupervisorStrategy
 
-//Δεν παράγει δεδομένα 
-// τα λαμβάνει μέσω mqtt
-// ενημερώνει την κατάστασή του
-// και τα προωθεί μέσω kafka 
-// ο μηχανισμός για τα queries λείτουργεί διαφορετικά απο τις εντολές 
-// οι εντολές στέλνονται ως json κατευθείαν στις συσκευές 
-// οι ερωτήσεις μπορούν να απαντηθούν απο τα υπάρχοντα δεδομένα 
-// θα πρέπει να υλοποιηθουν 
+// Actor representing a device in a building 
 object DeviceRep {
 
     sealed trait Msg
 
+    /** Sent when new data is received from topic */
     final case class NewData(value: DeviceData, replyTo: ActorRef[DataReceived]) extends Msg
-    final case class RequestData(replyTo: ActorRef[DataResponse]) extends Msg
-    final case class PublishCommand(cmdJson: String, replyTo: ActorRef[StatusReply[String]]) extends Msg
 
+    /** Response to NewData message successfull execution */   
     final case class DataReceived(id: String, data: DeviceData) extends Msg
+
+
+    /** Sent when the current device data is requested in a query */
+    final case class RequestData(replyTo: ActorRef[DataResponse]) extends Msg
+
+    /** Response to RequestData message successfull execution */  
     final case class DataResponse(id: String, dataJson: String) extends Msg
 
-    // δυο τρόποι κατασκευής
-    
-    // απλές συσκευές
+
+    /** Sents when a command in json format is to be published to the device */
+    final case class PublishCommand(cmdJson: String, replyTo: ActorRef[StatusReply[String]]) extends Msg
+
+    /**
+      * Create a general type device
+      * @param device GenDevice instance
+      * @param modulePath topic to subscribe in order to receive data
+      * @param buildingId building this devices belongs to
+      */
     def apply[A <: DeviceData](
         device: GenDevice[A], 
         modulePath: String,
         buildingId: String
     ): Behavior[Msg] = 
         Behaviors
-            .setup { context =>
-           
+            .setup { context => 
                 context.spawn[Nothing](
-                    DeviceDataStreamer(device, modulePath, s"Data-$buildingId", context.self), 
+                    Behaviors
+                        .supervise[Nothing](DeviceDataStreamer(device, modulePath, s"Data-$buildingId", context.self))
+                        .onFailure(SupervisorStrategy.restartWithBackoff(1.second, 30.seconds, 0.2d)), 
                     name = s"SUB_${device.id}"
                 )
-
                 new GenDeviceRep(context, device, modulePath).running(None)
             }
 
-    // έξυπνες συσκευές
+    /**
+      * Create a smart type device
+      * @param device SmartDevice instance
+      * @param modulePath topic to subscribe in order to receive data
+      * @param buildingId building this devices belongs to
+      */
     def apply[A <: DeviceData, B <: DeviceCmd](
         device: SmartDevice[A, B], 
         modulePath: String,
         buildingId: String
     ): Behavior[Msg] = 
         Behaviors
-            .setup { context =>
-                // subscribe στα /device/deviceid: /data και /cmd/ack ωστε να ενημερώνεται 
-                // για τα καινούργια δεδομένα και την αναγνώριση εκτέλεσης μιας εντολής αντίστοιχα 
-    
-                // publish στο /device/deviceid/cmd για να στέλνει εντολές απο τα παραπάνω επίπεδα
-
-            
+            .setup { context =>       
                 context.spawn[Nothing](
-                    Behaviors.supervise[Nothing](
-                        DeviceDataStreamer(device,modulePath, s"Data-$buildingId", context.self) 
-                        
-                    ).onFailure(SupervisorStrategy.restartWithBackoff(1.second, 30.seconds, 0.2d)),
+                    Behaviors
+                        .supervise[Nothing](DeviceDataStreamer(device, modulePath, s"Data-$buildingId", context.self))
+                        .onFailure(SupervisorStrategy.restartWithBackoff(1.second, 30.seconds, 0.2d)),
                     name = s"SUB_${device.id}"
                 )
-
                 new SmartDeviceRep(context, device, modulePath).running(None)
             }
-    
 }
 
 

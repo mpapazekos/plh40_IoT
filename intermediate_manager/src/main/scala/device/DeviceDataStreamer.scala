@@ -2,6 +2,8 @@
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
+import akka.stream.ActorAttributes
+import akka.stream.Supervision
 import akka.stream.alpakka.mqtt.MqttQoS
 import akka.stream.alpakka.mqtt.MqttSubscriptions
 import akka.stream.typed.scaladsl.ActorFlow
@@ -13,17 +15,20 @@ import plh40_iot.util.MqttConnector
 import plh40_iot.util.Utils
 
 import scala.concurrent.duration._
-import akka.stream.ActorAttributes
-import akka.stream.Supervision
 
 object DeviceDataStreamer {
 
     import DeviceRep.{NewData, DataReceived}
 
-    // είναι υπεύθυνος για την απόκτηση δεδομένων απο έναν mqtt broker 
-    // με το που τα λάβει επιτυχώς αναβαθμίζει την κατάσταση του κυρίως actor
-    // τα προωθεί στο kafka topic για το συγκεκριμένο κτήριο
-
+    /**
+      * Creates a stream responsible for getting device data 
+      * through an mqtt broker and publishing them to a kafka broker.
+      * @param device current device instance
+      * @param mqttSubTopic mqtt topic to subscribe to 
+      * @param kafkaPubTopic kafka topic to publish data
+      * @param deviceRep  actor keeping the latest data to inform when getting new data
+      * @param askTimeout timeout period for asking deviceRep 
+      */
     def apply[A <: DeviceData](
         device: GenDevice[A], 
         mqttSubTopic: String, 
@@ -36,16 +41,13 @@ object DeviceDataStreamer {
                 implicit val system = context.system
                 implicit val ec = system.classicSystem.dispatcher
 
-                // mqtt subscriber 
                 val subscriptions = 
                     MqttSubscriptions(mqttSubTopic -> MqttQoS.AtLeastOnce)
 
                 val subscriberSource = 
                     MqttConnector.subscriberSource(s"IoT_SUB_${device.id}", subscriptions)
 
-                // Οταν λαμβάνεται μια καινούργια μέτρηση απο εναν mqtt broker 
-                // ενημερώνεται αρχικά ο actor υπέθυνος για την συσκευή 
-                // και ύστερα προωθείται σε έναν kafka broker
+           
                 val flowThroughDeviceRep = 
                     ActorFlow
                         .ask[DeviceData, NewData, DataReceived](deviceRep)(NewData.apply)

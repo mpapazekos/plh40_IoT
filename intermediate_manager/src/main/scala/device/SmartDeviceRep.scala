@@ -22,6 +22,13 @@ final class SmartDeviceRep[A <: DeviceData, B <: DeviceCmd](
     implicit val system = context.system
     implicit val ec = system.classicSystem.dispatcher
 
+    /**
+     * Smart device rep behavior.
+     * When new data is received updates current state and responds to sender.
+     * When current state is requested it is converted to json format and passed through response message.
+     * When a message for publishing command arrives, a single mqtt message is published to broker.
+     * @param data latest data received from device
+     */
     def running(data: Option[A]): Behavior[Msg] = 
         Behaviors
             .receiveMessagePartial {

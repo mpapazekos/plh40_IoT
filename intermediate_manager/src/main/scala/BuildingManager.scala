@@ -35,34 +35,32 @@ final class BuildingManager private (context: ActorContext[BuildingManager.Msg],
     import BuildingManager._
     import DeviceGroup.{GetLatestDataFrom, AggregatedData}
 
+    // Tracks device groups in building by using a map from groupId to actorRef
     private var groupToActor: HashMap[String, ActorRef[DeviceGroup.Msg]] = HashMap.empty
 
     context.spawn(RegisterListener(buildingId, buildingManager = context.self), "RegisterListener")
     context.spawn(QueryConsumer(buildingId, buildingManager = context.self), "QueryConsumer")
     context.spawn(CmdConsumer(buildingId, buildingManager = context.self), "CmdConsumer")
 
-    // διατηρεί έναν κατάλογο με τις ομάδες συσκευών
     def mainBehavior(): Behavior[Msg] = 
         Behaviors
             .receiveMessagePartial {
                 case RegisterDevice(devInfo, replyTo) =>
-                    // οταν λαμβάνει ένα καινουργιο μήνυμα για εγγραφή συσκευής 
-                    // πρώτα δημιουργεί την ομάδα αν δεν υπάρχει 
-                    // και στέλνει αντίστοιχο μήνυμα σε αυτή για τη δημιουργία συσκευής
-                    context.log.info("Finding group {}", devInfo.groupId)
-                    if (groupToActor.contains(devInfo.groupId)) {
-                        context.log.info("Group already created: {}", devInfo.groupId)
-                        val groupRef = groupToActor(devInfo.groupId)
-                        groupRef ! DeviceGroup.NewDevice(devInfo, replyTo)
-                        Behaviors.same  
-                    }
-                    else {
-                        context.log.info("Creating group: {}", devInfo.groupId)
-                        val groupRef = context.spawn(DeviceGroup(devInfo.groupId, buildingId), name = devInfo.groupId) 
-                        groupRef ! DeviceGroup.NewDevice(devInfo, replyTo)
-                        groupToActor = groupToActor.updated(devInfo.groupId, groupRef)
-                        Behaviors.same
-                    }
+                
+                    val groupRef =          
+                        if (groupToActor.contains(devInfo.groupId)) {
+                            context.log.info("Group already created: {}", devInfo.groupId)
+                            groupToActor(devInfo.groupId) 
+                        }
+                        else {
+                            context.log.info("Creating group: {}", devInfo.groupId)
+                            val ref = context.spawn(DeviceGroup(devInfo.groupId, buildingId), name = devInfo.groupId)  
+                            groupToActor = groupToActor.updated(devInfo.groupId, ref)
+                            ref
+                        }
+
+                    groupRef ! DeviceGroup.NewDevice(devInfo, replyTo)
+                    Behaviors.same  
 
                 case QueryDevices(parsedQuery, replyTo) => 
 
@@ -78,16 +76,9 @@ final class BuildingManager private (context: ActorContext[BuildingManager.Msg],
             }
 
 
+    /** Forwards commands to existing device groups */
     private def sendCommandsToGroups(parsedCmds: ParsedCommands, replyTo: ActorRef[StatusReply[String]], timeout: FiniteDuration): Unit = {
-        /**
-         * οι πληροφορίες που φτάνουν σε αυτό το σημείο έχουν τη μορφή 
-         * Map(
-         *     "group1" -> Iterable(jsonCmd1, jsonCmd2, ...)
-         *     "group2" -> Iterable(jsonCmd1, jsonCmd2, ...)
-         *     ...  
-         * )
-         */
-
+    
         val aggregatorBehavior = 
             Aggregator.statusReplyCollector[String](
                 sendRequests = { receiver => 
@@ -109,6 +100,7 @@ final class BuildingManager private (context: ActorContext[BuildingManager.Msg],
         context.spawnAnonymous(aggregatorBehavior)  
     }
 
+    /** Forwards queries to existing device groups */
     private def queryDevices(parsedQuery: ParsedQuery, replyTo: ActorRef[AggregatedResults], timeout: FiniteDuration): Unit = {
          val aggregatorBehavior = 
             Aggregator[AggregatedData, AggregatedResults](
