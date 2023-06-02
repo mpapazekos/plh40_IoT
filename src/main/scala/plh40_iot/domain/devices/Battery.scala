@@ -1,32 +1,64 @@
 package plh40_iot.domain.devices
 
-import scala.util.Random
-
 import plh40_iot.domain.DeviceTypes._
 import plh40_iot.util.Utils.currentTimestamp
-import plh40_iot.domain.devices.DeviceJsonProtocol
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+
+import scala.util.Random
+
+//===========================================================================
 
 sealed trait BatteryStatus 
 
-case object Charging extends BatteryStatus 
+case object Charging    extends BatteryStatus 
 case object Discharging extends BatteryStatus 
-case object Off extends BatteryStatus
+case object Off         extends BatteryStatus
 
+sealed trait BatteryCmd extends DeviceCmd
+final case class ChangeStatus(status: BatteryStatus) extends BatteryCmd
 
 final case class BatteryData(deviceId: String, percentage: Double, status: BatteryStatus, timestamp: String) extends DeviceData {
     require(percentage >= 0 && percentage <= 100)
 }
 
-sealed trait BatteryCmd extends DeviceCmd
+//===========================================================================
 
-final case class ChangeStatus(status: BatteryStatus) extends BatteryCmd
+object BatteryJsonProtocol {
 
+    implicit object BatteryStatusFormat extends JsonFormat[BatteryStatus] {
+
+        override def read(json: JsValue): BatteryStatus = 
+            json match {
+                case JsString(value) => 
+                    value match {
+                        case "discharging" => Discharging
+                        case "charging" => Charging
+                        case "off" => Off   
+                } 
+            }
+        
+        override def write(obj: BatteryStatus): JsValue = {
+            val value = 
+                obj match {
+                    case Charging => "charging"
+                    case Discharging => "discharging"
+                    case Off => "off"
+                }
+
+            JsString(value)   
+        }  
+    }
+
+    implicit val batteryFormat = jsonFormat4(BatteryData)
+}
+
+//===========================================================================
 
 final class Battery(deviceId: String) extends SmartDevice[BatteryData, BatteryCmd](deviceId) {
 
-    import spray.json._
-    import DeviceJsonProtocol._
     import plh40_iot.util.Utils.tryParse
+    import BatteryJsonProtocol._
 
     override val typeStr = "battery"
     
@@ -77,6 +109,5 @@ final class Battery(deviceId: String) extends SmartDevice[BatteryData, BatteryCm
                     val newStatus = fields("value").convertTo[BatteryStatus]
                     ChangeStatus(newStatus)
             }
-
         }
 }

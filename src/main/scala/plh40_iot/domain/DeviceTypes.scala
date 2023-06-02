@@ -80,7 +80,7 @@ object DeviceTypes {
       * @param deviceId Unique device id
       * @return Either a new device instance if found, or an error message otherwise.
       */
-    def getDevice(name: String, deviceId: String) =
+    def create(name: String, deviceId: String) =
         name match {
                 case "thermostat" => Right(new Thermostat(deviceId))
                 case "battery" => Right(new Battery(deviceId))

@@ -50,6 +50,15 @@ object Aggregator {
                 collecting(Vector.empty)
             }
 
+    /**
+      * Pre-defined aggregator which collects status replies 
+      * @param sendRequests Function describing how to send requests to required actors  
+      * @param expectedReplies Number of replies to expect
+      * @param replyTo Actor to reply with the final result 
+      * @param aggregateReplies Function describing how to combine all collected replies
+      * @param timeout Timeout duration for expecting a reply
+      * @return Behavior for aggregator actor
+      */
     def statusReplyCollector[T](
         sendRequests: ActorRef[StatusReply[T]] => Unit,
         expectedReplies: Int,
