@@ -1,3 +1,4 @@
+package region_manager
 
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
@@ -11,12 +12,13 @@ import akka.actor.typed.PostStop
 
 object BuildingRep {
     
-   
-    // κανει subscribe σε kafka topic για τα δεδομένα των συσκευών ενός συγκεκριμένου κτηρίου
-    // με το που τα λαμβάνει τα προωθεί στο παραπάνω επίπεδο μέσω kafka 
-     
     sealed trait Msg 
 
+    /**
+      * Creates an actor represenative of a particular building.
+      * Starts a stream connected to a kafka broker which subscribes 
+      * in order to receive device data from that building.
+      */
     def apply(buildingId: String, regionId: String): Behavior[Msg] = 
         Behaviors
             .setup{ context => 
@@ -36,7 +38,7 @@ object BuildingRep {
                     Consumer
                         .committableSource(consumerSettings, Subscriptions.topics(s"Data-$buildingId", s"Query-results-$buildingId"))
                         .map { msg => 
-                            println("KAFKA CONSUMER RECEIVED VALUE: " + msg.record.value())
+                            println("KAFKA CONSUMER RECEIVED: " + msg.record.value())
                             msg.committableOffset
                         }
                         .toMat(Committer.sink(committerSettings))(Consumer.DrainingControl.apply)

@@ -1,3 +1,4 @@
+package region_manager 
 
 import akka.NotUsed
 import akka.actor.typed.ActorRef
@@ -16,30 +17,35 @@ import spray.json._
 
 object RegionManager {
 
+    // Convenient types for readability
     type BuildingToJsonMap = Map[String, String]
-    type KafkaRecords = ProducerMessage.Envelope[String, String, NotUsed]
-
-    // θα πρέπει να διατηρεί μια σύνδεση μέσω kafka απο την οποία θα λαμβάνει πληροφορίες για ενα κτήριο 
-    // για να κατασκευάσει εναν actor που το αντιπροσωπεύει χρειάζεται τις εξής πληροφορίες
-    //  group, building_id, kafka_topic, 
-
-    // kafka consumers 
-    // για εγγραφή νέας ομάδας 
-    // για εγγραφή στη λήψη δεδομένων απο intermediate manager
-    
-    // kafka producers 
-    // για αποστολή εντολων και ερωτημάτων 
+    type KafkaRecords      = ProducerMessage.Envelope[String, String, NotUsed]
 
     sealed trait Msg
 
+    /** Sent to create a new BuildingRep actor. Replies to sender with appropriate status report message. */
     final case class RegisterBuilding(buildingId: String, replyTo: ActorRef[StatusReply[String]]) extends Msg
+
+    /**
+      * Sent when some info is needed to forwarded to particular buildings in the region.
+      * Given a map which contains a json string for each building and a general topic for publishing, 
+      * creates the appropriate kafka records.
+      * @param buildingMap buildingId to json map 
+      * @param topicPrefix needed to build publishing topic for each building
+      * @param replyTo sender to reply with the created records
+      */
     final case class SendToBuilding(buildingMap: BuildingToJsonMap, topicPrefix: String, replyTo: ActorRef[StatusReply[KafkaRecords]]) extends Msg
+
+    /** Request for buildingIds of this region. Replies with a BuildingList message. */
+    final case class GetBuildingIds(replyTo: ActorRef[BuildingList]) extends Msg
+    final case class BuildingList(buildingsIds: Iterable[String])
    
     def apply(regionId: String, buildingIds: Iterable[String]): Behavior[Msg] = 
         Behaviors
             .setup(ctx => new RegionManager(ctx, regionId).init(buildingIds))
 
 
+    /** Used to parse a json format message containing queries for some buildings. */
     private def parseBuildingsQueryJson(msg: String): BuildingToJsonMap = {
         
         val buildings = 
@@ -57,6 +63,7 @@ object RegionManager {
         parsed.toMap
     }
 
+    /** Used to parse a json format message containing commands for some buildings. */
     private def parseBuildingsCmdJson(msg: String): BuildingToJsonMap = {
         
         val fields = 
@@ -81,22 +88,35 @@ final class RegionManager private (context: ActorContext[RegionManager.Msg], reg
 
     import RegionManager._
 
+    // Tracks buildings in region using a map from buildingId to actorRef
     private var buildingIdToActor: HashMap[String, ActorRef[BuildingRep.Msg]] = HashMap.empty
 
+    // default restart strategy for spawned actors
+    private val restartStrategy = 
+        SupervisorStrategy.restartWithBackoff(0.5.seconds, 20.seconds, 0.2)
+
+    // creates a query consumer
     context.spawn(
         Behaviors
-            .supervise(BuildingInfoConsumer(regionId, "Query", s"$regionId-qry-group", context.self, parseBuildingsQueryJson))
-            .onFailure[Exception](SupervisorStrategy.restartWithBackoff(0.5.seconds, 20.seconds, 0.2)), 
+            .supervise(BuildingInfoConsumer(
+                regionId, 
+                topicPrefix = "Query", 
+                consumerGroup = s"$regionId-qry-group", 
+                regionManager = context.self, 
+                parseBuildingsQueryJson))
+            .onFailure[Exception](restartStrategy), 
             name = s"$regionId-query-actor"
         )
 
+    // creates a command consumer
     context.spawn(
             Behaviors
                 .supervise(BuildingInfoConsumer(regionId, "Command", s"$regionId-cmd-group", context.self, parseBuildingsCmdJson))
-                .onFailure[Exception](SupervisorStrategy.restartWithBackoff(0.5.seconds, 20.seconds, 0.2)),
+                .onFailure[Exception](restartStrategy),
             name = s"$regionId-cmd-actor"
         )
 
+    /** Initial behavior. Updates tracked buildings map with given input values. */
     def init(buildingIds: Iterable[String]): Behavior[Msg] = {
         val buildings =
             buildingIds.map(id => (id -> spawnBuildingActor(id)))
@@ -109,6 +129,9 @@ final class RegionManager private (context: ActorContext[RegionManager.Msg], reg
     private def mainBehavior(): Behavior[Msg] = 
         Behaviors
             .receiveMessagePartial {
+                case GetBuildingIds(replyTo) =>
+                    replyTo ! BuildingList(buildingIdToActor.keySet)
+                    Behaviors.same
                 case RegisterBuilding(buildingId, replyTo) => 
                     if (buildingIdToActor.contains(buildingId)) {
                         replyTo ! StatusReply.Error(s"Building $buildingId is already registered")
@@ -139,6 +162,7 @@ final class RegionManager private (context: ActorContext[RegionManager.Msg], reg
                     Behaviors.same       
             }
 
+    /** Creates a supervised BuildingRep actor with the given buildingId. */
     private def spawnBuildingActor(buildingId: String): ActorRef[BuildingRep.Msg] = {
         context.log.debug("Spawning actor for building: {}", buildingId)
         context.spawnAnonymous(

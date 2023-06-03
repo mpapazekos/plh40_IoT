@@ -1,9 +1,10 @@
+package region_manager
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import akka.kafka.CommitterSettings
-import akka.kafka.ConsumerMessage
+import akka.kafka.ConsumerMessage.CommittableOffset
 import akka.kafka.Subscriptions
 import akka.kafka.scaladsl.Consumer
 import akka.kafka.scaladsl.Producer
@@ -21,11 +22,20 @@ object BuildingInfoConsumer {
     sealed trait Msg
 
     import RegionManager.{SendToBuilding, KafkaRecords, BuildingToJsonMap}
-    /** 
-      * 1. H ροή λαμβάνει ένα αντικείμενο json με ερωτήματα για το κάθε κτήριο 
-      * 2. αποκτάται η τιμή του πεδίου "buildings" -> (μήνυμα αποτυχημένης προσπάθειας)
-      * 3. στέλνει τα αποτελέσματα στον region manager
-      * 
+
+    /**
+      * Creates and handles a stream from a kafka broker 
+      * to another kafka broker lower in the hierarchy.
+      * Once the data arrives in json format, 
+      * it is parsed with a given function, 
+      * then sent to the region manager actor to create records, 
+      * and finally forwarded to a producer sink.
+      * @param regionId Id of system region
+      * @param topicPrefix Prefix needed to specify subscription topic
+      * @param consumerGroup Kafka consumer group 
+      * @param regionManager Region manager actor ref
+      * @param parseBuildingsJson Function to parse kafka records for this building
+      * @param askTimeout timeout for response when asking region manager 
       */
     def apply(
         regionId: String,
@@ -54,7 +64,7 @@ object BuildingInfoConsumer {
             
             val flowThroughRegionManager =
                 ActorFlow
-                    .askWithStatusAndContext[BuildingToJsonMap, SendToBuilding, KafkaRecords, ConsumerMessage.CommittableOffset](regionManager)(
+                    .askWithStatusAndContext[BuildingToJsonMap, SendToBuilding, KafkaRecords, CommittableOffset](regionManager)(
                         (msg, ackReceiver) => SendToBuilding(msg, topicPrefix, ackReceiver)
                     )
 
