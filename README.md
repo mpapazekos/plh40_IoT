@@ -36,8 +36,6 @@ The specifics for each devices to be running in a building is given to the appli
 
 ## Running the example
 
---- 
-
 To run this example locally make sure the docker engine is running. The use of docker-desktop is recommended because you can see the logs of the data transferred between each level conveniently. The images in this predefined example are configured either directly in the docker-compose file, or by the use of external files in the example folder (mqtt.conf for mqtt broker, .env files for device json input).
 
 ### Using existing docker images
@@ -59,7 +57,7 @@ for creating new images to be used locally.
 
 ---
 
-### Sending data queries and commands 
+## Sending data queries and commands 
 
 In order to send queries through the region manager and get the latest data from specific devices, you have to use an interactive shell for the kafka broker container in order to publish the queries in json format to the *Query-{regionId}* topic. The query format structure is: 
 
