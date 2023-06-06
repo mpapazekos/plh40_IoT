@@ -72,7 +72,8 @@ lazy val edge_device =
     .settings(
       dockerBaseImage := "arm64v8/eclipse-temurin:11.0.19_7-jre",
       dockerBuildCommand ++= Seq("--platform=linux/arm64/v8"),
-      packageName := s"$dockerRepo/edge_devices",
+      dockerRepository := Some(dockerRepo),
+      packageName := "edge_devices",
       version := "latest",
       dockerExposedPorts ++= Seq(9001)
     )
@@ -97,7 +98,8 @@ lazy val intermediate_manager =
     .enablePlugins(JavaAppPackaging, DockerPlugin)
     .settings(
       dockerBaseImage := "amd64/eclipse-temurin:11.0.19_7-jre",
-      packageName := s"$dockerRepo/intermediate_manager",
+      dockerRepository := Some(dockerRepo),
+      packageName := "intermediate_manager",
       version := "latest",
       dockerExposedPorts ++= Seq(9002)
     )
@@ -121,7 +123,8 @@ lazy val region_manager =
     .enablePlugins(JavaAppPackaging, DockerPlugin)
     .settings(
       dockerBaseImage := "amd64/eclipse-temurin:11.0.19_7-jre",
-      packageName := s"$dockerRepo/region_manager",
+      dockerRepository := Some(dockerRepo),
+      packageName := "region_manager",
       version := "latest",
       dockerExposedPorts ++= Seq(9003)
     )

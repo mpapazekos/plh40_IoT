@@ -1,5 +1,4 @@
 ---
-# sed -e "s/{HOST_IP_ADDRESS}/???.???.???.???/g" docker-compose.yml | docker compose --file - up -d
 version: '3'
 services:
   #-----------------------------------------------------------
@@ -44,7 +43,7 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://kafka-broker:29092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://{HOST_IP_ADDRESS}:9092, PLAINTEXT_INTERNAL://kafka-broker:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker:9092, PLAINTEXT_INTERNAL://kafka-broker:29092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
